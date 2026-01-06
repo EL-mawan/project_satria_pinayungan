@@ -1,0 +1,808 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { 
+  Plus, 
+  Search, 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign,
+  Calendar,
+  FileText,
+  Download,
+  Eye,
+  Edit,
+  Trash2,
+  Receipt,
+  Calculator,
+  ChevronRight,
+  MoreVertical,
+  ArrowUpRight,
+  ArrowDownRight,
+  Filter,
+  CheckCircle2,
+  Info
+} from 'lucide-react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { toast } from 'sonner'
+
+interface Pemasukan {
+  id: string
+  sumber: string
+  tanggal: string
+  nominal: number
+  keterangan?: string
+  bukti?: string
+}
+
+interface Pengeluaran {
+  id: string
+  jenis: string
+  tanggal: string
+  nominal: number
+  keterangan?: string
+  bukti?: string
+  kegiatan?: {
+    id: string
+    judul: string
+  }
+}
+
+interface LPJ {
+  id: string
+  periode: string
+  tanggalMulai: string
+  tanggalSelesai: string
+  totalPemasukan: number
+  totalPengeluaran: number
+  saldo: number
+  status: string
+  keterangan?: string
+  user: {
+    name: string
+    email: string
+  }
+}
+
+export default function KeuanganPage() {
+  const [activeTab, setActiveTab] = useState('pemasukan')
+  const [pemasukanList, setPemasukanList] = useState<Pemasukan[]>([])
+  const [pengeluaranList, setPengeluaranList] = useState<Pengeluaran[]>([])
+  const [lpjList, setLpjList] = useState<LPJ[]>([])
+  const [kegiatanList, setKegiatanList] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showLPJDialog, setShowLPJDialog] = useState(false)
+  const [createLoading, setCreateLoading] = useState(false)
+  
+  const [editingId, setEditingId] = useState<string | null>(null)
+  
+  const [formData, setFormData] = useState({
+    sumber: '',
+    jenis: '',
+    tanggal: new Date().toISOString().split('T')[0],
+    nominal: '',
+    keterangan: '',
+    kegiatanId: '',
+    bukti: ''
+  })
+
+  const [lpjFormData, setLpjFormData] = useState({
+    periode: '',
+    tanggalMulai: '',
+    tanggalSelesai: '',
+    keterangan: ''
+  })
+
+  const [summary, setSummary] = useState({
+    totalPemasukan: 0,
+    totalPengeluaran: 0,
+    saldo: 0
+  })
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount)
+  }
+
+  const fetchPemasukan = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/keuangan/pemasukan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPemasukanList(data.data)
+        setSummary(prev => ({ ...prev, totalPemasukan: data.summary.totalNominal }))
+      }
+    } catch (error) {
+      console.error('Error fetching pemasukan:', error)
+    }
+  }
+
+  const fetchPengeluaran = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/keuangan/pengeluaran', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPengeluaranList(data.data)
+        setSummary(prev => ({ ...prev, totalPengeluaran: data.summary.totalNominal }))
+      }
+    } catch (error) {
+      console.error('Error fetching pengeluaran:', error)
+    }
+  }
+
+  const fetchLPJ = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/keuangan/lpj', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setLpjList(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching LPJ:', error)
+    }
+  }
+
+  const fetchKegiatan = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/kegiatan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setKegiatanList(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching kegiatan:', error)
+    }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, bukti: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  useEffect(() => {
+    const loadAllData = async () => {
+      setLoading(true)
+      await Promise.all([
+        fetchPemasukan(),
+        fetchPengeluaran(),
+        fetchLPJ(),
+        fetchKegiatan()
+      ])
+      setLoading(false)
+    }
+    loadAllData()
+  }, [])
+
+  useEffect(() => {
+    setSummary(prev => ({
+      ...prev,
+      saldo: prev.totalPemasukan - prev.totalPengeluaran
+    }))
+  }, [summary.totalPemasukan, summary.totalPengeluaran])
+
+  const handleCreateRecord = async () => {
+    setCreateLoading(true)
+    let endpoint = activeTab === 'pemasukan' ? '/api/keuangan/pemasukan' : '/api/keuangan/pengeluaran'
+    let method = 'POST'
+
+    if (editingId) {
+      endpoint += `/${editingId}`
+      method = 'PATCH'
+    }
+
+    const payload = activeTab === 'pemasukan' 
+      ? { 
+          sumber: formData.sumber, 
+          tanggal: formData.tanggal, 
+          nominal: formData.nominal, 
+          keterangan: formData.keterangan,
+          bukti: formData.bukti 
+        }
+      : { 
+          jenis: formData.jenis, 
+          tanggal: formData.tanggal, 
+          nominal: formData.nominal, 
+          keterangan: formData.keterangan, 
+          kegiatanId: formData.kegiatanId,
+          bukti: formData.bukti
+        }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (response.ok) {
+        toast.success(`${activeTab === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'} berhasil ${editingId ? 'diperbarui' : 'dicatat'}`)
+        setShowCreateDialog(false)
+        setEditingId(null)
+        setFormData({
+          sumber: '',
+          jenis: '',
+          tanggal: new Date().toISOString().split('T')[0],
+          nominal: '',
+          keterangan: '',
+          kegiatanId: '',
+          bukti: ''
+        })
+        activeTab === 'pemasukan' ? fetchPemasukan() : fetchPengeluaran()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Gagal menyimpan data')
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan server')
+    } finally {
+      setCreateLoading(false)
+    }
+  }
+
+  const handleCreateLPJ = async () => {
+    setCreateLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/keuangan/lpj', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(lpjFormData)
+      })
+
+      if (response.ok) {
+        toast.success('Laporan LPJ berhasil dibuat')
+        setShowLPJDialog(false)
+        setLpjFormData({
+          periode: '',
+          tanggalMulai: '',
+          tanggalSelesai: '',
+          keterangan: ''
+        })
+        fetchLPJ()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Gagal membuat LPJ')
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan server')
+    } finally {
+      setCreateLoading(false)
+    }
+  }
+
+  const handleEdit = (item: any) => {
+    setEditingId(item.id)
+    setFormData({
+      sumber: item.sumber || '',
+      jenis: item.jenis || '',
+      tanggal: new Date(item.tanggal).toISOString().split('T')[0],
+      nominal: item.nominal.toString(),
+      keterangan: item.keterangan || '',
+      kegiatanId: item.kegiatan?.id || 'none',
+      bukti: item.bukti || ''
+    })
+    setShowCreateDialog(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const endpoint = activeTab === 'pemasukan' 
+        ? `/api/keuangan/pemasukan/${id}` 
+        : `/api/keuangan/pengeluaran/${id}`
+        
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        toast.success('Data berhasil dihapus')
+        activeTab === 'pemasukan' ? fetchPemasukan() : fetchPengeluaran()
+      } else {
+        toast.error('Gagal menghapus data')
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan server')
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'DRAFT': return 'bg-slate-100 text-slate-600'
+      case 'DIAJUKAN': return 'bg-amber-100 text-amber-600'
+      case 'DISETUJUI': return 'bg-emerald-100 text-emerald-600'
+      case 'DITOLAK': return 'bg-rose-100 text-rose-600'
+      default: return 'bg-slate-100 text-slate-600'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="h-8 bg-slate-200 rounded-lg w-64 animate-pulse"></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="border-none shadow-sm rounded-3xl h-32 animate-pulse bg-white"></Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-10 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Manajemen Keuangan</h1>
+        <p className="text-slate-500 mt-1 font-medium">Monitoring arus kas dan laporan pertanggungjawaban padepokan.</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { title: 'Total Pemasukan', value: summary.totalPemasukan, icon: ArrowUpRight, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+          { title: 'Total Pengeluaran', value: summary.totalPengeluaran, icon: ArrowDownRight, color: 'text-rose-600', bgColor: 'bg-rose-50' },
+          { title: 'Saldo Terkini', value: summary.saldo, icon: DollarSign, color: 'text-[#5E17EB]', bgColor: 'bg-[#5E17EB]/5' }
+        ].map((item, idx) => (
+          <Card key={idx} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl group hover:shadow-xl transition-all duration-300 bg-white overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className={`p-3 rounded-2xl ${item.bgColor} ${item.color}`}>
+                  <item.icon className="h-6 w-6" />
+                </div>
+                <div className="h-2 w-12 bg-slate-50 rounded-full"></div>
+              </div>
+              <div className="mt-4">
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{item.title}</p>
+                <h3 className={`text-2xl font-extrabold mt-1 ${item.color}`}>{formatCurrency(item.value)}</h3>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+          <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex overflow-x-auto md:inline-flex w-full md:w-auto scrollbar-hide">
+            <TabsList className="bg-transparent border-none gap-2 h-auto p-0 flex w-full md:w-auto min-w-max">
+              {[
+                { id: 'pemasukan', label: 'Pemasukan', icon: TrendingUp },
+                { id: 'pengeluaran', label: 'Pengeluaran', icon: TrendingDown }
+              ].map((tab) => (
+                <TabsTrigger 
+                  key={tab.id}
+                  value={tab.id}
+                  className={`
+                    rounded-xl px-4 md:px-6 py-2.5 font-bold transition-all h-auto flex-1 md:flex-none
+                    data-[state=active]:bg-[#5E17EB] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-[#5E17EB]/20
+                    text-slate-500 hover:bg-slate-50
+                  `}
+                >
+                  <tab.icon className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <Button 
+              variant="outline"
+              className="rounded-xl h-11 font-bold border-slate-200 text-slate-600 hover:bg-slate-50 w-full md:w-auto"
+              onClick={() => window.print()}
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download Laporan
+            </Button>
+            <Button 
+              className={`rounded-xl h-11 font-bold shadow-lg transition-all w-full md:w-auto ${
+                activeTab === 'pemasukan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 
+                'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+              }`}
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              {activeTab === 'pemasukan' ? 'Tambah Pemasukan' : 'Tambah Pengeluaran'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input 
+              placeholder={`Cari data ${activeTab}...`} 
+              className="pl-11 h-12 bg-white border-slate-200 rounded-2xl shadow-sm focus-visible:ring-[#5E17EB]/20 font-medium"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" className="h-12 px-6 rounded-2xl border-slate-200 text-slate-600 font-bold">
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+          </Button>
+        </div>
+
+        {/* Tab Contents */}
+        <TabsContent value="pemasukan" className="mt-0">
+          <div className="grid gap-4">
+            {pemasukanList.filter(item => item.sumber.toLowerCase().includes(search.toLowerCase())).map((item) => (
+              <Card key={item.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl hover:shadow-lg transition-all duration-300 bg-white group overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                      <TrendingUp className="h-7 w-7 text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-bold text-slate-900 group-hover:text-[#5E17EB] transition-colors">{item.sumber}</h4>
+                        <span className="text-emerald-600 font-extrabold text-lg">{formatCurrency(item.nominal)}</span>
+                      </div>
+                      <div className="flex items-center text-sm font-medium text-slate-500">
+                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                        {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        <span className="mx-2 opacity-30">•</span>
+                        <span className="truncate">{item.keterangan || 'Tanpa keterangan'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-[#5E17EB] hover:bg-[#5E17EB]/5" onClick={() => handleEdit(item)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {pemasukanList.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-slate-100">
+                <TrendingUp className="h-16 w-16 text-slate-200 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">Belum ada pemasukan</h3>
+                <p className="text-slate-500">Mulai catat pemasukan untuk monitoring kas.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pengeluaran" className="mt-0">
+          <div className="grid gap-4">
+            {pengeluaranList.filter(item => item.jenis.toLowerCase().includes(search.toLowerCase())).map((item) => (
+              <Card key={item.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl hover:shadow-lg transition-all duration-300 bg-white group overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
+                      <TrendingDown className="h-7 w-7 text-rose-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-bold text-slate-900 group-hover:text-[#5E17EB] transition-colors">{item.jenis}</h4>
+                        <span className="text-rose-600 font-extrabold text-lg">{formatCurrency(item.nominal)}</span>
+                      </div>
+                      <div className="flex items-center text-sm font-medium text-slate-500">
+                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                        {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        <span className="mx-2 opacity-30">•</span>
+                        <span className="truncate">{item.keterangan || 'Tanpa keterangan'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-[#5E17EB] hover:bg-[#5E17EB]/5" onClick={() => handleEdit(item)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {pengeluaranList.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-slate-100">
+                <TrendingDown className="h-16 w-16 text-slate-200 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">Belum ada pengeluaran</h3>
+                <p className="text-slate-500">Mulai catat pengeluaran operasional.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="lpj" className="mt-0">
+          <div className="grid gap-4">
+            {lpjList.map((item) => (
+              <Card key={item.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl hover:shadow-lg transition-all duration-300 bg-white group overflow-hidden border-l-4 border-l-[#5E17EB]">
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h4 className="font-extrabold text-lg text-slate-900">{item.periode}</h4>
+                        <Badge className={`rounded-full px-3 font-bold border-none transition-all ${getStatusBadge(item.status)}`}>
+                          {item.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pemasukan</p>
+                          <p className="font-extrabold text-emerald-600">{formatCurrency(item.totalPemasukan)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pengeluaran</p>
+                          <p className="font-extrabold text-rose-600">{formatCurrency(item.totalPengeluaran)}</p>
+                        </div>
+                        <div className="col-span-2 md:col-span-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sisa Saldo</p>
+                          <p className="font-extrabold text-[#5E17EB]">{formatCurrency(item.saldo)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between lg:justify-end gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-9 w-9 border-2 border-slate-100">
+                          <AvatarFallback className="bg-[#5E17EB]/10 text-[#5E17EB] text-xs font-bold">
+                            {item.user.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="hidden sm:block text-left">
+                          <p className="text-xs font-bold text-slate-900 leading-none mb-1">{item.user.name}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">Pembuat Laporan</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-[#5E17EB] hover:bg-[#5E17EB]/5">
+                          <Download className="h-5 w-5" />
+                        </Button>
+                        <Button className="rounded-xl bg-slate-900 text-white font-bold h-10 px-4">
+                          Detail
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {lpjList.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-slate-100">
+                <FileText className="h-16 w-16 text-slate-200 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">Belum ada LPJ</h3>
+                <p className="text-slate-500">Buat LPJ untuk merekapitulasi keuangan periode tertentu.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Pemasukan/Pengeluaran Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open)
+        if (!open) {
+          setEditingId(null)
+          setFormData({
+            sumber: '',
+            jenis: '',
+            tanggal: new Date().toISOString().split('T')[0],
+            nominal: '',
+            keterangan: '',
+            kegiatanId: '',
+            bukti: ''
+          })
+        }
+      }}>
+        <DialogContent className="max-w-md rounded-4xl p-0 overflow-hidden border-none shadow-2xl">
+          <div className={`p-8 ${activeTab === 'pemasukan' ? 'bg-emerald-600' : 'bg-rose-600'} text-white`}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-extrabold flex items-center">
+                {activeTab === 'pemasukan' ? <TrendingUp className="mr-3 h-6 w-6" /> : <TrendingDown className="mr-3 h-6 w-6" />}
+                {editingId ? 'Edit' : 'Tambah'} {activeTab === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'}
+              </DialogTitle>
+              <DialogDescription className="text-white/80 font-medium">
+                Catat mutasi kas baru untuk {activeTab === 'pemasukan' ? 'pemasukan' : 'pengeluaran'} padepokan.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-8 space-y-5 bg-white">
+            <div className="space-y-2">
+              <Label className="font-bold text-slate-700 ml-1">
+                {activeTab === 'pemasukan' ? 'Sumber Pemasukan' : 'Jenis Pengeluaran'}
+              </Label>
+              <Input
+                placeholder={activeTab === 'pemasukan' ? "Contoh: Iuran Bulanan" : "Contoh: Konsumsi Latihan"}
+                className="h-12 rounded-2xl border-slate-200 focus:ring-[#5E17EB]/20"
+                value={activeTab === 'pemasukan' ? formData.sumber : formData.jenis}
+                onChange={(e) => setFormData({ ...formData, [activeTab === 'pemasukan' ? 'sumber' : 'jenis']: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Tanggal</Label>
+                <Input
+                  type="date"
+                  className="h-12 rounded-2xl border-slate-200"
+                  value={formData.tanggal}
+                  onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Nominal (Rp)</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  className="h-12 rounded-2xl border-slate-200"
+                  value={formData.nominal}
+                  onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {activeTab === 'pengeluaran' && (
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Kegiatan Terkait (Opsional)</Label>
+                <Select value={formData.kegiatanId} onValueChange={(val) => setFormData({ ...formData, kegiatanId: val })}>
+                  <SelectTrigger className="h-12 rounded-2xl border-slate-200">
+                    <SelectValue placeholder="Pilih kegiatan" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="none">Tidak ada</SelectItem>
+                    {kegiatanList.map(kg => <SelectItem key={kg.id} value={kg.id}>{kg.judul}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="font-bold text-slate-700 ml-1">Keterangan</Label>
+              <Textarea
+                placeholder="Tambahkan catatan tambahan jika perlu..."
+                className="rounded-2xl border-slate-200 min-h-[100px]"
+                value={formData.keterangan}
+                onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
+              />
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setShowCreateDialog(false)}>
+                Batal
+              </Button>
+              <Button 
+                className={`flex-1 h-12 rounded-2xl font-extrabold shadow-lg ${activeTab === 'pemasukan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                onClick={handleCreateRecord}
+                disabled={createLoading}
+              >
+                {createLoading ? 'Menyimpan...' : 'Simpan Data'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* LPJ Dialog */}
+      <Dialog open={showLPJDialog} onOpenChange={setShowLPJDialog}>
+        <DialogContent className="max-w-md rounded-4xl p-0 overflow-hidden border-none shadow-2xl">
+          <div className="p-8 bg-[#5E17EB] text-white">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-extrabold flex items-center">
+                <FileText className="mr-3 h-6 w-6" />
+                Buat LPJ Baru
+              </DialogTitle>
+              <DialogDescription className="text-white/80 font-medium">
+                Rekapitulasi keuangan untuk periode waktu tertentu.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-8 space-y-5 bg-white">
+            <div className="space-y-2">
+              <Label className="font-bold text-slate-700 ml-1">Nama Periode</Label>
+              <Input
+                placeholder="Contoh: Januari 2024"
+                className="h-12 rounded-2xl border-slate-200"
+                value={lpjFormData.periode}
+                onChange={(e) => setLpjFormData({ ...lpjFormData, periode: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Mulai</Label>
+                <Input
+                  type="date"
+                  className="h-12 rounded-2xl border-slate-200"
+                  value={lpjFormData.tanggalMulai}
+                  onChange={(e) => setLpjFormData({ ...lpjFormData, tanggalMulai: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Selesai</Label>
+                <Input
+                  type="date"
+                  className="h-12 rounded-2xl border-slate-200"
+                  value={lpjFormData.tanggalSelesai}
+                  onChange={(e) => setLpjFormData({ ...lpjFormData, tanggalSelesai: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-bold text-slate-700 ml-1">Keterangan Opsional</Label>
+              <Textarea
+                placeholder="Catatan tambahan untuk laporan ini..."
+                className="rounded-2xl border-slate-200"
+                value={lpjFormData.keterangan}
+                onChange={(e) => setLpjFormData({ ...lpjFormData, keterangan: e.target.value })}
+              />
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start space-x-3">
+               <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+               <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                 Sistem akan menjumlahkan secara otomatis seluruh pemasukan dan pengeluaran pada rentang tanggal yang dipilih.
+               </p>
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setShowLPJDialog(false)}>
+                Batal
+              </Button>
+              <Button 
+                className="flex-1 h-12 rounded-2xl font-extrabold bg-[#5E17EB] hover:bg-[#4a11c0] shadow-lg shadow-[#5E17EB]/20"
+                onClick={handleCreateLPJ}
+                disabled={createLoading}
+              >
+                {createLoading ? 'Memproses...' : 'Generate Laporan'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

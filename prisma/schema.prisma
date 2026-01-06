@@ -1,0 +1,401 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(ANGGOTA)
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  anggota   Anggota?
+  suratMasuk SuratMasuk[]
+  suratKeluar SuratKeluar[]
+  lpj LPJ[]
+
+  @@map("users")
+}
+
+model Anggota {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  nomorInduk  String      @unique
+  namaLengkap String
+  tempatLahir String?
+  tanggalLahir DateTime?
+  jenjang     Jenjang    @default(PUTIH)
+  status      StatusAnggota @default(AKTIF)
+  tanggalGabung DateTime @default(now())
+  alamat      String?
+  telepon     String?
+  foto        String?
+  keterangan  String?
+  seksiId     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seksi       Seksi?      @relation("AnggotaSeksi", fields: [seksiId], references: [id])
+  kegiatanAnggota KegiatanAnggota[]
+  seksiKetua  Seksi?      @relation("KetuaSeksi")
+  riwayatPemakaian RiwayatPemakaian[]
+
+  @@map("anggota")
+}
+
+model Kegiatan {
+  id          String   @id @default(cuid())
+  judul       String
+  deskripsi   String?
+  tanggal     DateTime
+  lokasi      String?
+  jenis       JenisKegiatan
+  status      StatusKegiatan @default(TERJADWAL)
+  foto        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  kegiatanAnggota KegiatanAnggota[]
+  dokumentasi     Dokumentasi[]
+  pengeluaran     Pengeluaran[]
+
+  @@map("kegiatan")
+}
+
+model KegiatanAnggota {
+  id        String   @id @default(cuid())
+  kegiatanId String
+  anggotaId String
+  peran     String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+  anggota Anggota @relation(fields: [anggotaId], references: [id], onDelete: Cascade)
+
+  @@unique([kegiatanId, anggotaId])
+  @@map("kegiatan_anggota")
+}
+
+model Seksi {
+  id          String   @id @default(cuid())
+  nama        String   @unique
+  bidang      String?  @default("Umum")
+  deskripsi   String?
+  tugas       String?
+  ketuaId     String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  ketua       Anggota? @relation("KetuaSeksi", fields: [ketuaId], references: [id])
+  anggota     Anggota[] @relation("AnggotaSeksi")
+  peralatan   Peralatan[]
+
+  @@map("seksi")
+}
+
+model Peralatan {
+  id          String           @id @default(cuid())
+  nama        String
+  kode        String           @unique
+  seksiId     String?
+  jumlah      Int              @default(1)
+  kondisi     KondisiPeralatan @default(BAIK)
+  keterangan  String?
+  foto        String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  seksi       Seksi?           @relation(fields: [seksiId], references: [id])
+  riwayatPemakaian RiwayatPemakaian[]
+
+  @@map("peralatan")
+}
+
+model RiwayatPemakaian {
+  id          String   @id @default(cuid())
+  peralatanId String
+  anggotaId   String?
+  tanggalPakai DateTime
+  tanggalKembali DateTime?
+  keterangan  String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  peralatan Peralatan @relation(fields: [peralatanId], references: [id], onDelete: Cascade)
+  anggota   Anggota?  @relation(fields: [anggotaId], references: [id])
+
+  @@map("riwayat_pemakaian")
+}
+
+model SuratMasuk {
+  id          String       @id @default(cuid())
+  nomor       String       @unique
+  tanggal     DateTime
+  pengirim    String
+  perihal     String
+  isi         String?
+  file        String?
+  userId      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@map("surat_masuk")
+}
+
+model SuratKeluar {
+  id          String       @id @default(cuid())
+  nomor       String       @unique
+  tanggal     DateTime
+  tujuan      String
+  perihal     String
+  jenis       JenisSurat
+  isi         String?
+  template    String?
+  file        String?
+  catatan     String?
+  status      StatusSurat  @default(DRAFT)
+  userId      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@map("surat_keluar")
+}
+
+model Pemasukan {
+  id          String   @id @default(cuid())
+  sumber      String
+  tanggal     DateTime
+  nominal     Float
+  keterangan  String?
+  bukti       String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pemasukan")
+}
+
+model Pengeluaran {
+  id          String   @id @default(cuid())
+  kegiatanId  String?
+  jenis       String
+  tanggal     DateTime
+  nominal     Float
+  keterangan  String?
+  bukti       String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  kegiatan    Kegiatan? @relation(fields: [kegiatanId], references: [id])
+
+  @@map("pengeluaran")
+}
+
+model LPJ {
+  id          String     @id @default(cuid())
+  periode     String
+  tanggalMulai DateTime
+  tanggalSelesai DateTime
+  totalPemasukan Float
+  totalPengeluaran Float
+  saldo       Float
+  keterangan  String?
+  file        String?
+  status      StatusLPJ  @default(DRAFT)
+  catatan     String?
+  userId      String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@map("lpj")
+}
+
+model Dokumentasi {
+  id          String   @id @default(cuid())
+  kegiatanId  String
+  judul       String
+  deskripsi   String?
+  tipe        TipeDokumentasi
+  file        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  kegiatan    Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+
+  @@map("dokumentasi")
+}
+
+model Galeri {
+  id          String   @id @default(cuid())
+  judul       String
+  deskripsi   String?
+  tipe        TipeDokumentasi
+  file        String
+  kategori    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("galeri")
+}
+
+model Informasi {
+  id          String   @id @default(cuid())
+  judul       String
+  konten      String
+  tipe        TipeInformasi
+  status      StatusInformasi @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("informasi")
+}
+
+model HomeContent {
+  id          String   @id @default(cuid())
+  section     String   @unique // hero, about, values, contact, etc
+  title       String?
+  subtitle    String?
+  description String?
+  imageUrl    String?
+  content     String?  // JSON string for complex data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("home_content")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contact_messages")
+}
+
+// Enums
+enum UserRole {
+  MASTER_ADMIN
+  KETUA
+  SEKRETARIS
+  BENDAHARA
+  ANGGOTA
+}
+
+enum Jenjang {
+  PUTIH
+  HIJAU
+  BIRU
+  COKLAT
+  MERAH
+  HITAM
+}
+
+enum StatusAnggota {
+  AKTIF
+  TIDAK_AKTIF
+  CUTI
+  KELUAR
+}
+
+enum JenisKegiatan {
+  LATIHAN
+  PENGESAHAN
+  ACARA_ADAT
+  SEMINAR
+  LOMBA
+  RAPAT
+  LAINNYA
+}
+
+enum StatusKegiatan {
+  TERJADWAL
+  BERLANGSUNG
+  SELESAI
+  DIBATALKAN
+}
+
+enum KondisiPeralatan {
+  BAIK
+  RUSAK_RINGAN
+  RUSAK_BERAT
+  HABIS
+}
+
+enum JenisSurat {
+  UNDANGAN
+  PROPOSAL
+  RESMI
+  LAINNYA
+}
+
+enum StatusSurat {
+  DRAFT
+  MENUNGGU_VALIDASI
+  VALIDASI
+  DITOLAK
+}
+
+enum StatusLPJ {
+  DRAFT
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+}
+
+enum TipeDokumentasi {
+  FOTO
+  VIDEO
+}
+
+enum TipeInformasi {
+  PENGUMUMAN
+  BERITA
+  AGENDA
+  LAINNYA
+}
+
+enum StatusInformasi {
+  DRAFT
+  PUBLIK
+  ARSIP
+}

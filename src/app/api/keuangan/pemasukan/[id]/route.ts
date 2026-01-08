@@ -70,7 +70,7 @@ export async function PATCH(
   }
 
   try {
-    const { sumber, tanggal, nominal, keterangan, bukti } = await request.json()
+    const { sumber, tanggal, nominal, keterangan, bukti, unitSumber, qty } = await request.json()
 
     const updated = await db.pemasukan.update({
       where: { id: params.id },
@@ -78,6 +78,8 @@ export async function PATCH(
         sumber,
         tanggal: new Date(tanggal),
         nominal: parseFloat(nominal),
+        unitSumber,
+        qty: qty ? parseInt(qty) : null,
         keterangan,
         bukti
       }

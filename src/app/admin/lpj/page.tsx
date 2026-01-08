@@ -48,6 +48,10 @@ import {
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
+import { useRef } from 'react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import LaporanPDF from '../keuangan/components/LaporanPDF'
 
 interface LPJ {
   id: string
@@ -89,6 +93,22 @@ export default function LpjPage() {
   // Loading States
   const [submitLoading, setSubmitLoading] = useState(false)
   const [calcLoading, setCalcLoading] = useState(false)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+
+  // PDF Data State
+  const [pdfData, setPdfData] = useState<{
+    pemasukanList: any[]
+    pengeluaranList: any[]
+    summary: { totalPemasukan: number; totalPengeluaran: number; saldo: number }
+    tanggalMulai?: string
+    tanggalSelesai?: string
+  }>({
+    pemasukanList: [],
+    pengeluaranList: [],
+    summary: { totalPemasukan: 0, totalPengeluaran: 0, saldo: 0 },
+    tanggalMulai: '',
+    tanggalSelesai: ''
+  })
 
   const [formData, setFormData] = useState({
     periode: '',
@@ -264,6 +284,107 @@ export default function LpjPage() {
     setEditingId(null)
   }
 
+  /* PDF Download Handler */
+  const pdfRef = useRef<HTMLDivElement>(null)
+
+  const handleDownloadPDF = async (lpj: LPJ) => {
+    if (!pdfRef.current) return
+    
+    setIsGeneratingPdf(true)
+    const toastId = toast.loading('Menyiapkan data laporan...')
+    
+    try {
+      const token = localStorage.getItem('token')
+      
+      // 1. Fetch ALL pemasukan and pengeluaran to filter
+      const [pemRes, pengRes] = await Promise.all([
+        fetch('/api/keuangan/pemasukan', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/keuangan/pengeluaran', { headers: { 'Authorization': `Bearer ${token}` } })
+      ])
+
+      if (!pemRes.ok || !pengRes.ok) throw new Error('Gagal mengambil data keuangan')
+
+      const pemData = await pemRes.json()
+      const pengData = await pengRes.json()
+
+      // 2. Filter data based on LPJ dates
+      const startDate = new Date(lpj.tanggalMulai)
+      const endDate = new Date(lpj.tanggalSelesai)
+      endDate.setHours(23, 59, 59, 999)
+
+      const filteredPemasukan = pemData.data.filter((item: any) => {
+        const date = new Date(item.tanggal)
+        return date >= startDate && date <= endDate
+      })
+
+      const filteredPengeluaran = pengData.data.filter((item: any) => {
+        const date = new Date(item.tanggal)
+        return date >= startDate && date <= endDate
+      })
+
+      const totalPemasukan = filteredPemasukan.reduce((acc: number, curr: any) => acc + curr.nominal, 0)
+      const totalPengeluaran = filteredPengeluaran.reduce((acc: number, curr: any) => acc + curr.nominal, 0)
+
+      // 3. Set PDF Data
+      setPdfData({
+        pemasukanList: filteredPemasukan,
+        pengeluaranList: filteredPengeluaran,
+        summary: {
+          totalPemasukan,
+          totalPengeluaran,
+          saldo: totalPemasukan - totalPengeluaran
+        },
+        tanggalMulai: lpj.tanggalMulai,
+        tanggalSelesai: lpj.tanggalSelesai
+      })
+
+      // 4. Wait for render
+      await new Promise(resolve => setTimeout(resolve, 600))
+
+      const element = pdfRef.current
+      const canvas = await html2canvas(element, {
+        scale: 2, 
+        logging: false,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+           const styles = clonedDoc.getElementsByTagName('style')
+           const links = clonedDoc.getElementsByTagName('link')
+           Array.from(styles).forEach(style => style.remove())
+           Array.from(links).forEach(link => link.rel === 'stylesheet' && link.remove())
+           
+           const clonedElement = clonedDoc.getElementById('laporan-pdf')
+           if (clonedElement) {
+             clonedElement.style.display = 'block'
+             clonedElement.style.visibility = 'visible'
+             clonedElement.style.backgroundColor = '#ffffff'
+             clonedElement.style.color = '#000000'
+           }
+        }
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+      
+      const imgWidth = 210
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      pdf.save(`Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}.pdf`)
+      
+      toast.success('Laporan berhasil diunduh', { id: toastId })
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast.error('Gagal membuat PDF. Silakan coba lagi.', { id: toastId })
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
   const handleEditLPJ = (lpj: LPJ) => {
     setFormData({
         periode: lpj.periode,
@@ -312,13 +433,6 @@ export default function LpjPage() {
           <p className="text-slate-500 font-medium">Arsip dan pengelolaan laporan keuangan padepokan.</p>
         </div>
         <div className="flex gap-2">
-            <Button 
-                variant="outline" 
-                className="rounded-xl font-bold h-12 px-6 border-slate-200"
-                onClick={() => window.print()}
-            >
-                <Download className="mr-2 h-5 w-5" /> Cetak Rekap
-            </Button>
             <Button 
                 className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl font-bold h-12 px-6 shadow-lg shadow-indigo-100"
                 onClick={() => setShowCreateDialog(true)}
@@ -465,14 +579,11 @@ export default function LpjPage() {
                                 variant="outline" 
                                 size="icon"
                                 className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all duration-300 shadow-sm" 
-                                onClick={() => {
-                                    setSelectedLPJ(lpj)
-                                    setTimeout(() => window.print(), 100)
-                                }}
-                                disabled={lpj.status !== 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role)}
-                                title="Cetak Laporan"
+                                onClick={() => handleDownloadPDF(lpj)}
+                                disabled={isGeneratingPdf || (lpj.status !== 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role))}
+                                title="Download LPJ"
                             >
-                                <Printer className="h-5 w-5" />
+                                {isGeneratingPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                             </Button>
                             
                             {(lpj.user.email === currentUser?.email || ['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role)) && (
@@ -753,10 +864,11 @@ export default function LpjPage() {
                 <Button 
                     variant="outline" 
                     className="rounded-xl px-6 h-11 font-bold disabled:opacity-50 w-full sm:w-auto order-first sm:order-0" 
-                    onClick={() => window.print()}
-                    disabled={selectedLPJ.status !== 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role)}
+                    onClick={() => handleDownloadPDF(selectedLPJ!)}
+                    disabled={isGeneratingPdf || (selectedLPJ.status !== 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role))}
                 >
-                    <Printer className="h-4 w-4 mr-2" /> Cetak
+                    {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} 
+                    Download LPJ
                 </Button>
               </div>
             </>
@@ -803,6 +915,18 @@ export default function LpjPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden PDF Component */}
+      <div className="fixed top-0 left-[-9999px] -z-50">
+        <LaporanPDF 
+          ref={pdfRef}
+          pemasukanList={pdfData.pemasukanList}
+          pengeluaranList={pdfData.pengeluaranList}
+          summary={pdfData.summary}
+          tanggalMulai={pdfData.tanggalMulai}
+          tanggalSelesai={pdfData.tanggalSelesai}
+        />
+      </div>
     </div>
   )
 }

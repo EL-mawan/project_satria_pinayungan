@@ -22,10 +22,20 @@ import {
   Bell,
   MessageSquare,
   ChevronRight,
-  Home
+  Home,
+  Check,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface User {
   id: string
@@ -61,7 +71,58 @@ export default function AdminLayout({
       console.error('Error parsing user data:', error)
       router.push('/login')
     }
+
   }, [router])
+
+  // Notifications State
+  const [counts, setCounts] = useState({ unreadMessages: 0, pendingSurat: 0, pendingLPJ: 0, unreadChatMessages: 0, totalNotifications: 0 })
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  const fetchNotifications = async () => {
+    try {
+        const res = await fetch('/api/admin/notifications')
+        if (res.ok) {
+            const data = await res.json()
+            if (data.counts) setCounts(data.counts)
+            if (data.notifications) setNotifications(data.notifications)
+        }
+    } catch (e) {
+        console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    fetchNotifications()
+    // Poll every minute
+    const interval = setInterval(fetchNotifications, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleMarkAllRead = async () => {
+      try {
+          const res = await fetch('/api/admin/notifications', { method: 'POST' })
+          if (res.ok) {
+              // Optimistic update: clear message notifications
+              setNotifications(prev => prev.filter(n => n.type !== 'PESAN'))
+              setCounts(prev => ({ 
+                  ...prev, 
+                  unreadMessages: 0,
+                  totalNotifications: prev.unreadChatMessages
+              }))
+              // Refresh actual data
+              fetchNotifications()
+          }
+      } catch (e) {
+          console.error(e)
+      }
+  }
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+          // Placeholder for search functionality
+          alert(`Searching for: ${(e.target as HTMLInputElement).value}`)
+      }
+  }
 
   const handleLogout = () => {
     if (confirm('Apakah Anda yakin ingin keluar?')) {
@@ -101,6 +162,12 @@ export default function AdminLayout({
       icon: DollarSign,
       href: '/admin/keuangan',
       roles: ['MASTER_ADMIN', 'KETUA', 'BENDAHARA']
+    },
+    {
+      title: 'Pesan Masuk',
+        icon: MessageSquare,
+        href: '/admin/pesan',
+        roles: ['MASTER_ADMIN', 'KETUA', 'SEKRETARIS']
     },
     {
       title: 'LPJ',
@@ -272,17 +339,102 @@ export default function AdminLayout({
               <Input 
                 placeholder="Cari sesuatu..." 
                 className="pl-10 h-11 bg-slate-100 border-none rounded-xl focus-visible:ring-2 focus-visible:ring-[#5E17EB]/20 text-sm"
+                onKeyDown={handleSearch}
               />
             </div>
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
-            <Button variant="ghost" size="icon" className="text-slate-500 hover:bg-slate-100 rounded-xl relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-slate-500 hover:bg-slate-100 rounded-xl">
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-slate-500 hover:bg-slate-100 rounded-xl relative"
+                >
+                  <Bell className="h-5 w-5" />
+                  {counts.totalNotifications > 0 && (
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 sm:w-96 p-0 rounded-3xl border-slate-100 shadow-xl" align="end">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
+                      <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-slate-900">Notifikasi</h4>
+                          {counts.totalNotifications > 0 && (
+                              <Badge className="bg-rose-500 hover:bg-rose-600 border-none text-white rounded-lg px-2 py-0.5 text-xs">
+                                  {counts.totalNotifications} Baru
+                              </Badge>
+                          )}
+                      </div>
+                  </div>
+                  <ScrollArea className="max-h-[60vh]">
+                      {notifications.length === 0 ? (
+                          <div className="p-8 text-center text-slate-500">
+                             <CheckCircle className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+                             <p className="font-medium text-sm">Tidak ada notifikasi baru</p>
+                             <p className="text-xs mt-1">Semua sistem aman terkendali</p>
+                          </div>
+                      ) : (
+                          <div className="divide-y divide-slate-100">
+                              {notifications.map((item) => (
+                                  <div 
+                                      key={`${item.type}-${item.id}`} 
+                                      className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                      onClick={() => router.push(item.link)}
+                                  >
+                                      <div className="flex items-start gap-3">
+                                          <div className={`
+                                              w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                                              ${item.type === 'SURAT' ? 'bg-amber-100 text-amber-600' : 
+                                                item.type === 'LPJ' ? 'bg-purple-100 text-purple-600' : 
+                                                'bg-blue-100 text-blue-600'}
+                                          `}>
+                                              {item.type === 'SURAT' && <Mail className="h-5 w-5" />}
+                                              {item.type === 'LPJ' && <FileText className="h-5 w-5" />}
+                                              {item.type === 'PESAN' && <MessageSquare className="h-5 w-5" />}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-bold text-slate-800 group-hover:text-[#5E17EB] transition-colors">{item.title}</p>
+                                              <p className="text-xs text-slate-500 font-medium mb-1 line-clamp-2">{item.description}</p>
+                                              <p className="text-[10px] text-slate-400 font-bold">
+                                                  {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(item.time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                              </p>
+                                          </div>
+                                          <div className="w-2 h-2 rounded-full bg-rose-500 mt-2 shrink-0 animate-pulse" />
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </ScrollArea>
+                  {notifications.length > 0 && (
+                      <div className="p-2 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl text-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs font-bold text-slate-500 hover:text-[#5E17EB] h-8"
+                            onClick={handleMarkAllRead}
+                          >
+                              Tandai Semua Dibaca
+                          </Button>
+                      </div>
+                  )}
+              </PopoverContent>
+            </Popover>
+
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-slate-500 hover:bg-slate-100 rounded-xl relative"
+                onClick={() => router.push('/admin/chat')}
+            >
               <MessageSquare className="h-5 w-5" />
+              {counts.unreadChatMessages > 0 && (
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
+              )}
             </Button>
             
             <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block" />

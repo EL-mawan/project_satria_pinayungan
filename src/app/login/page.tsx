@@ -139,7 +139,6 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
                 <Label htmlFor="password" className="text-sm font-bold text-slate-700">Password</Label>
-                <Link href="#" className="text-sm font-bold text-[#5E17EB] hover:underline">Lupa password?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />

@@ -109,6 +109,9 @@ export default function UndanganBuilderPage() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [isViewMode, setIsViewMode] = useState(searchParams.get('mode') === 'view')
   const previewRef = useRef<HTMLDivElement>(null)
+  
+  // Envelope State
+  const [showEnvelope, setShowEnvelope] = useState(false)
 
   // Bulk State
   const [bulkRecipients, setBulkRecipients] = useState<{ nama: string, jabatan: string, tempat: string }[]>([])
@@ -160,6 +163,18 @@ export default function UndanganBuilderPage() {
     }
   }
 
+  // Date Input State (YYYY-MM-DD)
+  const [dateInput, setDateInput] = useState(new Date().toISOString().split('T')[0])
+
+  // Sync formatted date to data.tanggal whenever dateInput changes
+  useEffect(() => {
+    if (dateInput) {
+        const date = new Date(dateInput)
+        const formatted = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        setData(prev => ({ ...prev, tanggal: formatted }))
+    }
+  }, [dateInput])
+
   useEffect(() => {
     if (undanganId) {
       fetchExistingUndangan()
@@ -191,6 +206,10 @@ export default function UndanganBuilderPage() {
               if (json.data.status === 'VALIDASI' || searchParams.get('mode') === 'view') {
                 setIsViewMode(true)
               }
+            }
+            // Load Date from DB
+            if (json.data.tanggal) {
+                setDateInput(new Date(json.data.tanggal).toISOString().split('T')[0])
             }
             if (json.data.catatan) setRejectionReason(json.data.catatan)
           } catch (e) {
@@ -287,12 +306,12 @@ export default function UndanganBuilderPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          tujuan: bulkRecipients.length > 0 ? `${bulkRecipients.length} Penerima (Bulk)` : `${data.penerima.nama} di ${data.penerima.tempat}`,
+          tujuan: bulkRecipients.length > 0 ? `${bulkRecipients.length} Penerima` : `${data.penerima.nama} di ${data.penerima.tempat}`,
           perihal: data.perihal,
           jenis: 'UNDANGAN',
           isi: JSON.stringify({ ...data, bulkRecipients }),
           template: 'UNDANGAN_FORMAL',
-          tanggal: new Date().toISOString(),
+          tanggal: new Date(dateInput).toISOString(),
           status: undanganId ? ((undanganStatus === 'DRAFT' || undanganStatus === 'DITOLAK') ? 'MENUNGGU_VALIDASI' : undanganStatus) : 'MENUNGGU_VALIDASI',
           ...(undanganStatus === 'DITOLAK' ? { status: 'MENUNGGU_VALIDASI', catatan: null } : {})
         })
@@ -420,61 +439,133 @@ export default function UndanganBuilderPage() {
         await new Promise(r => setTimeout(r, 600))
 
         if (!previewRef.current) continue
-        const page = previewRef.current.querySelector('.undangan-page') as HTMLElement
+        const targetSelector = showEnvelope ? '.amplop-page' : '.undangan-page'
+        const page = previewRef.current.querySelector(targetSelector) as HTMLElement
         if (!page) continue
 
         const canvas = await html2canvas(page, {
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
-          windowWidth: 794,
-          windowHeight: 1123,
+          windowWidth: showEnvelope ? 870 : 794,
+          windowHeight: showEnvelope ? 416 : 1123,
           onclone: (clonedDoc) => {
             const existingStyles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]')
             existingStyles.forEach(s => s.remove())
             const style = clonedDoc.createElement('style')
-            style.innerHTML = `
-              @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-              * { font-family: 'Crimson Pro', serif !important; color: #000 !important; }
-              .undangan-page { 
-                width: 210mm !important; 
-                min-height: 297mm !important; 
-                padding: 20mm 25mm !important; 
-                background: white !important;
-                line-height: 1.5 !important;
-                font-size: 12pt !important;
-                transform: none !important;
-                margin: 0 !important;
-              }
-              .kop-wrapper { position: relative !important; margin-bottom: 2mm !important; width: 100% !important; min-height: 18mm !important; }
-              .kop-logo-kiri { position: absolute !important; left: 0 !important; top: 0 !important; bottom: 0 !important; margin: auto !important; width: 18mm !important; height: 18mm !important; object-fit: contain !important; }
-              .kop-logo-kanan { position: absolute !important; right: 0 !important; top: 0 !important; bottom: 0 !important; margin: auto !important; width: 18mm !important; height: 18mm !important; object-fit: contain !important; }
-              .kop-text { padding: 0 18mm !important; text-align: center !important; }
-              .kop-text-org { font-size: 13pt !important; font-weight: bold !important; white-space: nowrap !important; margin-bottom: 2px !important; text-transform: uppercase !important; }
-              .kop-text-addr { font-size: 11pt !important; line-height: 1.2 !important; }
-              .kop-text-contact { font-size: 8pt !important; font-style: italic !important; margin-top: 2px !important; }
-              .divider-line-container { width: 100% !important; margin-bottom: 8mm !important; margin-top: 2mm !important; }
-              .line-thick { border-top: 3px solid black !important; margin-bottom: 1px !important; }
-              .line-thin { border-top: 1px solid black !important; }
-              
-              /* Content Specifics */
-              .surat-header-info { display: flex !important; justify-content: space-between !important; align-items: flex-start !important; margin-bottom: 8mm !important; font-size: 12pt !important; }
-              .surat-to { margin-bottom: 8mm !important; font-size: 12pt !important; }
-              .surat-body { margin-bottom: 6mm !important; font-size: 12pt !important; text-align: justify !important; line-height: 1.5 !important; }
-              .surat-closing { margin-bottom: 10mm !important; font-size: 12pt !important; text-align: justify !important; line-height: 1.5 !important; }
-              .surat-signature { margin-top: 15mm !important; font-size: 12pt !important; }
-            `
+            
+            if (showEnvelope) {
+               style.innerHTML = `
+                 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+                 * { font-family: 'Crimson Pro', serif !important; color: #000 !important; }
+                 .amplop-page { 
+                   width: 230mm !important; 
+                   height: 110mm !important; 
+                   padding: 10mm !important; 
+                   background: white !important;
+                   position: relative !important;
+                   margin: 0 !important;
+                   transform: none !important;
+                 }
+                 /* Bulk Envelope Styles - Matches Single Generate */
+                 .kop-wrapper { 
+                     position: relative !important; 
+                     margin-bottom: 2mm !important; 
+                     width: 100% !important; 
+                     min-height: 22mm !important; 
+                     display: flex !important;
+                     align-items: center !important;
+                     justify-content: center !important;
+                 }
+                 .kop-logo-kiri { 
+                     position: absolute !important; 
+                     left: 5mm !important; 
+                     top: 0 !important; 
+                     width: 20mm !important; 
+                     height: 20mm !important; 
+                     object-fit: contain !important; 
+                 }
+                 .kop-logo-kanan { 
+                     position: absolute !important; 
+                     right: 5mm !important; 
+                     top: 0 !important; 
+                     width: 20mm !important; 
+                     height: 20mm !important; 
+                     object-fit: contain !important; 
+                 }
+                 
+                 .kop-text { 
+                     text-align: center !important; 
+                     padding: 0 28mm !important;
+                     width: 100% !important;
+                 }
+                 .kop-text-org { font-size: 14pt !important; font-weight: bold !important; text-transform: uppercase !important; margin-bottom: 2px !important; line-height: 1.1 !important; }
+                 .kop-text-addr { font-size: 9pt !important; line-height: 1.2 !important; }
+                 .kop-text-contact { font-size: 8pt !important; font-style: italic !important; margin-top: 2px !important; }
+                 
+                 .divider-line-container { width: 100% !important; margin: 4mm 0 8mm 0 !important; }
+                 .line-thick { border-top: 3px solid black !important; margin-bottom: 1px !important; }
+                 .line-thin { border-top: 1px solid black !important; }
+    
+                 .amplop-recipient-box {
+                    margin-left: 110mm !important;
+                    margin-top: 2mm !important;
+                    padding: 4mm !important;
+                    font-size: 13pt !important;
+                 }
+                 .amplop-number {
+                    position: absolute !important;
+                    bottom: 12mm !important;
+                    left: 12mm !important;
+                    font-size: 10pt !important;
+                 }
+               `
+            } else {
+               style.innerHTML = `
+                 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+                 * { font-family: 'Crimson Pro', serif !important; color: #000 !important; }
+                 .undangan-page { 
+                   width: 210mm !important; 
+                   min-height: 297mm !important; 
+                   padding: 20mm 25mm !important; 
+                   background: white !important;
+                   line-height: 1.5 !important;
+                   font-size: 12pt !important;
+                   transform: none !important;
+                   margin: 0 !important;
+                 }
+                 .kop-wrapper { position: relative !important; margin-bottom: 2mm !important; width: 100% !important; min-height: 20mm !important; }
+                 .kop-logo-kiri { position: absolute !important; left: 0 !important; top: 0 !important; bottom: 0 !important; margin: auto !important; width: 20mm !important; height: 20mm !important; object-fit: contain !important; }
+                 .kop-logo-kanan { position: absolute !important; right: 0 !important; top: 0 !important; bottom: 0 !important; margin: auto !important; width: 20mm !important; height: 20mm !important; object-fit: contain !important; }
+                 .kop-text { padding: 0 20mm !important; text-align: center !important; }
+                 .kop-text-org { font-size: 13pt !important; font-weight: bold !important; white-space: nowrap !important; margin-bottom: 2px !important; text-transform: uppercase !important; }
+                 .kop-text-addr { font-size: 11pt !important; line-height: 1.2 !important; }
+                 .kop-text-contact { font-size: 8pt !important; font-style: italic !important; margin-top: 2px !important; }
+                 .divider-line-container { width: 100% !important; margin-bottom: 8mm !important; margin-top: 2mm !important; }
+                 .line-thick { border-top: 3px solid black !important; margin-bottom: 1px !important; }
+                 .line-thin { border-top: 1px solid black !important; }
+                 
+                 /* Content Specifics */
+                 .surat-header-info { display: flex !important; justify-content: space-between !important; align-items: flex-start !important; margin-bottom: 8mm !important; font-size: 12pt !important; }
+                 .surat-to { margin-bottom: 8mm !important; font-size: 12pt !important; }
+                 .surat-body { margin-bottom: 6mm !important; font-size: 12pt !important; text-align: justify !important; line-height: 1.5 !important; }
+                 .surat-closing { margin-bottom: 10mm !important; font-size: 12pt !important; text-align: justify !important; line-height: 1.5 !important; }
+                 .surat-signature { margin-top: 15mm !important; font-size: 12pt !important; }
+               `
+            }
             clonedDoc.head.appendChild(style)
           }
         })
 
-        const doc = new jsPDF('p', 'mm', 'a4')
+        const doc = showEnvelope ? new jsPDF('l', 'mm', 'dl') : new jsPDF('p', 'mm', 'a4')
         const imgData = canvas.toDataURL('image/jpeg', 0.9)
-        doc.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST')
+        doc.addImage(imgData, 'JPEG', 0, 0, showEnvelope ? 220 : 210, showEnvelope ? 110 : 297, undefined, 'FAST')
         
         const blob = doc.output('blob')
-        folder?.file(`Undangan_${i + 1}_${recipient.nama.replace(/[^a-z0-9]/gi, '_')}.pdf`, blob)
+        // Rename file if envelope
+        const prefix = showEnvelope ? 'Amplop' : 'Undangan'
+        folder?.file(`${prefix}_${i + 1}_${recipient.nama.replace(/[^a-z0-9]/gi, '_')}.pdf`, blob)
       }
 
       const zipContent = await zip.generateAsync({ type: 'blob' })
@@ -545,7 +636,7 @@ export default function UndanganBuilderPage() {
                 position: relative !important;
                 margin-bottom: 2mm !important;
                 width: 100% !important;
-                min-height: 18mm !important;
+                min-height: 20mm !important;
               }
 
               .kop-logo-kiri {
@@ -554,8 +645,8 @@ export default function UndanganBuilderPage() {
                 top: 0 !important;
                 bottom: 0 !important;
                 margin: auto !important;
-                width: 18mm !important;
-                height: 18mm !important;
+                width: 20mm !important;
+                height: 20mm !important;
                 object-fit: contain !important;
               }
 
@@ -565,14 +656,14 @@ export default function UndanganBuilderPage() {
                 top: 0 !important;
                 bottom: 0 !important;
                 margin: auto !important;
-                width: 18mm !important;
-                height: 18mm !important;
+                width: 20mm !important;
+                height: 20mm !important;
                 object-fit: contain !important;
               }
 
               .kop-text {
                 text-align: center !important;
-                padding: 0 18mm !important;
+                padding: 0 20mm !important;
               }
               .kop-text-org { font-size: 13pt !important; font-weight: bold !important; white-space: nowrap !important; margin-bottom: 2px !important; text-transform: uppercase !important; }
               .kop-text-addr { font-size: 11pt !important; line-height: 1.2 !important; }
@@ -610,6 +701,130 @@ export default function UndanganBuilderPage() {
     } catch (e) {
       console.error(e)
       toast.error('Gagal generate PDF')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
+  const generateEnvelopePDF = async () => {
+    if (!previewRef.current) return
+    setIsGeneratingPDF(true)
+    toast.info('Menyiapkan PDF Amplop...')
+
+    try {
+      await document.fonts.ready
+      // Use custom size: 230mm x 110mm
+      const doc = new jsPDF('l', 'mm', [230, 110]) 
+      const envelopeElement = previewRef.current.querySelector('.amplop-page') as HTMLElement
+      
+      if (!envelopeElement) {
+        throw new Error('Envelope element not found')
+      }
+
+      await new Promise(r => setTimeout(r, 500))
+
+      const canvas = await html2canvas(envelopeElement, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 870, // approx 230mm in pixels
+        windowHeight: 416, 
+        onclone: (clonedDoc) => {
+           const existingStyles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]')
+           existingStyles.forEach(s => s.remove())
+           
+           const style = clonedDoc.createElement('style')
+           style.innerHTML = `
+             @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+             * { font-family: 'Crimson Pro', serif !important; color: #000 !important; }
+             .amplop-page { 
+               width: 230mm !important; 
+               height: 110mm !important; 
+               padding: 10mm !important; 
+               background: white !important;
+               position: relative !important;
+               margin: 0 !important;
+               transform: none !important;
+             }
+             /* Kop Surat Amplop - Adjusted for size and nice fit */
+             .kop-wrapper { 
+                 position: relative !important; 
+                 margin-bottom: 2mm !important; 
+                 width: 100% !important; 
+                 min-height: 22mm !important; /* Increased height */
+                 display: flex !important;
+                 align-items: center !important;
+                 justify-content: center !important;
+             }
+             .kop-logo-kiri { 
+                 position: absolute !important; 
+                 left: 5mm !important; /* Adjusted margin */
+                 top: 0 !important; 
+                 width: 20mm !important; /* Enlarged */
+                 height: 20mm !important; 
+                 object-fit: contain !important; 
+             }
+             .kop-logo-kanan { 
+                 position: absolute !important; 
+                 right: 5mm !important; /* Adjusted margin */
+                 top: 0 !important; 
+                 width: 20mm !important; /* Enlarged */
+                 height: 20mm !important; 
+                 object-fit: contain !important; 
+             }
+             
+             .kop-text { 
+                 text-align: center !important; 
+                 padding: 0 28mm !important; /* Increased padding to clear larger logos */
+                 width: 100% !important;
+             }
+             .kop-text-org { 
+                 font-size: 14pt !important; /* Enlarged */
+                 font-weight: bold !important; 
+                 text-transform: uppercase !important; 
+                 margin-bottom: 2px !important; 
+                 line-height: 1.1 !important;
+             }
+             .kop-text-addr { 
+                 font-size: 9pt !important; /* Enlarged */
+                 line-height: 1.2 !important; 
+             }
+             .kop-text-contact { 
+                 font-size: 8pt !important; /* Enlarged */
+                 font-style: italic !important; 
+                 margin-top: 2px !important; 
+             }
+             
+             .divider-line-container { width: 100% !important; margin: 4mm 0 8mm 0 !important; }
+             .line-thick { border-top: 3px solid black !important; margin-bottom: 1px !important; }
+             .line-thin { border-top: 1px solid black !important; }
+
+             .amplop-recipient-box {
+                margin-left: 110mm !important; /* Adjusted for wider envelope */
+                margin-top: 2mm !important;
+                padding: 4mm !important;
+                font-size: 13pt !important; /* Slightly larger text */
+             }
+             .amplop-number {
+                position: absolute !important;
+                bottom: 12mm !important;
+                left: 12mm !important;
+                font-size: 10pt !important;
+             }
+           `
+           clonedDoc.head.appendChild(style)
+        }
+      })
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      doc.addImage(imgData, 'JPEG', 0, 0, 230, 110, undefined, 'FAST')
+      doc.save(`Amplop_${data.perihal.replace(/\s+/g, '_')}.pdf`)
+      toast.success('PDF Amplop berhasil diunduh')
+
+    } catch (e) {
+      console.error(e)
+      toast.error('Gagal generate Amplop. Pastikan mode "Cetak Amplop" aktif.')
     } finally {
       setIsGeneratingPDF(false)
     }
@@ -831,8 +1046,9 @@ export default function UndanganBuilderPage() {
                   <div>
                     <Label className="text-gray-600 text-xs uppercase tracking-wider font-semibold">Tanggal Surat</Label>
                     <Input
-                      value={data.tanggal}
-                      onChange={(e) => setData(prev => ({ ...prev, tanggal: e.target.value }))}
+                      type="date"
+                      value={dateInput}
+                      onChange={(e) => setDateInput(e.target.value)}
                       placeholder="05 Januari 2026"
                       disabled={isViewMode}
                       className="mt-1.5"
@@ -1200,12 +1416,12 @@ export default function UndanganBuilderPage() {
                   <div className="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
                      <div className="flex items-center gap-2 w-full md:w-auto">
                         <Button 
-                            onClick={generatePDF} 
+                            onClick={showEnvelope ? generateEnvelopePDF : generatePDF} 
                             disabled={!isDownloadActive()}
                             className={`flex-1 md:flex-none rounded-xl font-bold ${!isDownloadActive() ? 'opacity-50 cursor-not-allowed' : ''}`}
                             variant={isDownloadActive() ? "default" : "secondary"}
                         >
-                            <Download className="mr-2 h-4 w-4" /> Unduh PDF
+                            <Download className="mr-2 h-4 w-4" /> {showEnvelope ? "Unduh Amplop" : "Unduh PDF"}
                         </Button>
                         
                         {bulkRecipients.length > 0 && (
@@ -1224,9 +1440,18 @@ export default function UndanganBuilderPage() {
                         )}
                      </div>
 
-                     {/* Admin / Ketua Actions */}
-                     {(currentUserRole === 'MASTER_ADMIN' || currentUserRole === 'KETUA') && undanganId && (
-                         <div className="flex items-center gap-2 w-full md:w-auto">
+                     <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                        <Button
+                            onClick={() => setShowEnvelope(!showEnvelope)}
+                            variant="secondary"
+                            className="flex-1 md:flex-none rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        >
+                            <Printer className="mr-2 h-4 w-4" /> {showEnvelope ? "Lihat Surat" : "Cetak Amplop"}
+                        </Button>
+
+                        {/* Admin / Ketua Actions */}
+                        {(currentUserRole === 'MASTER_ADMIN' || currentUserRole === 'KETUA') && undanganId && (
+                             <div className="flex items-center gap-2">
                             {undanganStatus !== 'VALIDASI' && (
                                 <Button 
                                     onClick={() => handleStatusChange('VALIDASI')}
@@ -1281,6 +1506,7 @@ export default function UndanganBuilderPage() {
                             )}
                          </div>
                      )}
+                   </div>
                   </div>
 
                   {/* Rejection Notice */}
@@ -1305,135 +1531,226 @@ export default function UndanganBuilderPage() {
                       ref={previewRef}
                       className="undangan-content flex flex-col gap-6 sm:gap-8 scale-[0.45] origin-top sm:scale-[0.6] md:scale-[0.65] lg:scale-[0.68] xl:scale-[0.75]"
                     >
-                      <div className="undangan-page bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm shrink-0 mx-auto" style={{
-                        width: '794px',
-                        minHeight: '1123px',
-                        padding: '50px 80px',
-                        fontFamily: "'Crimson Pro', 'Times New Roman', serif",
-                        color: '#000',
-                        lineHeight: '1.5',
-                        fontSize: '12pt',
-                        boxSizing: 'border-box',
-                      }}>
-                        {/* Kop Surat */}
-                        <div className="kop-wrapper" style={{ position: 'relative', width: '100%', marginBottom: '2mm', minHeight: '18mm' }}>
-                          {data.logoKiri && (
-                            <img src={data.logoKiri} alt="Logo Kiri" className="kop-logo-kiri" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, margin: 'auto', width: '18mm', height: '18mm', objectFit: 'contain' }} />
-                          )}
-                          <div className="kop-text" style={{ textAlign: 'center', padding: '0 18mm' }}>
-                            <div className="kop-text-org" style={{ fontSize: '13pt', fontWeight: 'bold', whiteSpace: 'nowrap', marginBottom: '2px', textTransform: 'uppercase' }}>
-                              {data.namaKopSurat}
+                      {showEnvelope ? (
+                        <div className="amplop-page bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm shrink-0 mx-auto" style={{
+                            width: '230mm',
+                            height: '110mm',
+                            padding: '10mm',
+                            fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+                            color: '#000',
+                            backgroundColor: 'white',
+                            position: 'relative'
+                        }}>
+                             {/* Kop Surat Amplop - Adjusted for size and nice fit */}
+                             <div className="kop-wrapper" style={{ 
+                                 position: 'relative', 
+                                 marginBottom: '2mm', 
+                                 width: '100%', 
+                                 minHeight: '22mm', 
+                                 display: 'flex', 
+                                 alignItems: 'center', 
+                                 justifyContent: 'center' 
+                            }}>
+                              {data.logoKiri && (
+                                <img src={data.logoKiri} alt="Logo Kiri" className="kop-logo-kiri" style={{ 
+                                    position: 'absolute', 
+                                    left: '5mm', 
+                                    top: 0, 
+                                    width: '25mm', 
+                                    height: '25mm', 
+                                    objectFit: 'contain' 
+                                }} />
+                              )}
+                              <div className="kop-text" style={{ 
+                                  textAlign: 'center', 
+                                  padding: '0 28mm',
+                                  width: '100%' 
+                              }}>
+                                <div className="kop-text-org" style={{ 
+                                    fontSize: '14pt', 
+                                    fontWeight: 'bold', 
+                                    whiteSpace: 'nowrap', 
+                                    marginBottom: '2px', 
+                                    textTransform: 'uppercase',
+                                    lineHeight: '1.1' 
+                                }}>
+                                  {data.namaKopSurat}
+                                </div>
+                                <div className="kop-text-addr" style={{ fontSize: '12pt', whiteSpace: 'pre-line', lineHeight: '1.2' }}>
+                                  {data.alamatKopSurat}
+                                </div>
+                                <div className="kop-text-contact" style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '2px' }}>
+                                  {data.kontakKopSurat}
+                                </div>
+                              </div>
+                              {data.logoKanan && (
+                                <img src={data.logoKanan} alt="Logo Kanan" className="kop-logo-kanan" style={{ 
+                                    position: 'absolute', 
+                                       right: '5mm', 
+                                    top: 0, 
+                                    width: '20mm', 
+                                    height: '20mm', 
+                                    objectFit: 'contain' 
+                                }} />
+                              )}
                             </div>
-                            <div className="kop-text-addr" style={{ fontSize: '11pt', whiteSpace: 'pre-line', lineHeight: '1.2' }}>
-                              {data.alamatKopSurat}
+
+                            {/* Divider */}
+                            <div className="divider-line-container" style={{ width: '100%', marginBottom: '4mm', marginTop: '4mm' }}>
+                              <div className="line-thick" style={{ borderTop: '3px solid black', marginBottom: '1px' }}></div>
+                              <div className="line-thin" style={{ borderTop: '1px solid black' }}></div>
                             </div>
-                            <div className="kop-text-contact" style={{ fontSize: '8pt', fontStyle: 'italic', marginTop: '2px' }}>
-                              {data.kontakKopSurat}
+                            
+                            {/* Recipient Box */}
+                            <div className="amplop-recipient-box" style={{ 
+                                marginLeft: '110mm', 
+                                marginTop: '2mm', 
+                                padding: '4mm',
+                                fontSize: '13pt'
+                            }}>
+                                <div>Kepada Yth.</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '13pt', marginTop: '2px' }}>{data.penerima.nama}</div>
+                                {data.penerima.jabatan && <div style={{ fontWeight: 'bold' }}>{data.penerima.jabatan}</div>}
+                                <div style={{ marginTop: '2px' }}>di_</div>
+                                <div style={{ marginLeft: '10px', fontWeight: 'bold' }}>{data.penerima.tempat}</div>
+                            </div>
+
+                            {/* Number (Optional) */}
+                            <div className="amplop-number" style={{ position: 'absolute', bottom: '12mm', left: '12mm', fontSize: '10pt', color: '#333' }}>
+                                No: {data.nomor}
+                            </div>
+                        </div>
+                      ) : (
+                        <div className="undangan-page bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm shrink-0 mx-auto" style={{
+                          width: '794px',
+                          minHeight: '1123px',
+                          padding: '50px 80px',
+                          fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+                          color: '#000',
+                          lineHeight: '1.5',
+                          fontSize: '12pt',
+                          boxSizing: 'border-box',
+                        }}>
+                          {/* Kop Surat */}
+                          <div className="kop-wrapper" style={{ position: 'relative', width: '100%', marginBottom: '2mm', minHeight: '20mm' }}>
+                            {data.logoKiri && (
+                              <img src={data.logoKiri} alt="Logo Kiri" className="kop-logo-kiri" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, margin: 'auto', width: '20mm', height: '20mm', objectFit: 'contain' }} />
+                            )}
+                            <div className="kop-text" style={{ textAlign: 'center', padding: '0 20mm' }}>
+                              <div className="kop-text-org" style={{ fontSize: '13pt', fontWeight: 'bold', whiteSpace: 'nowrap', marginBottom: '2px', textTransform: 'uppercase' }}>
+                                {data.namaKopSurat}
+                              </div>
+                              <div className="kop-text-addr" style={{ fontSize: '11pt', whiteSpace: 'pre-line', lineHeight: '1.2' }}>
+                                {data.alamatKopSurat}
+                              </div>
+                              <div className="kop-text-contact" style={{ fontSize: '8pt', fontStyle: 'italic', marginTop: '2px' }}>
+                                {data.kontakKopSurat}
+                              </div>
+                            </div>
+                            {data.logoKanan && (
+                              <img src={data.logoKanan} alt="Logo Kanan" className="kop-logo-kanan" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, margin: 'auto', width: '20mm', height: '20mm', objectFit: 'contain' }} />
+                            )}
+                          </div>
+
+                          {/* Divider */}
+                          <div className="divider-line-container" style={{ width: '100%', marginBottom: '8mm', marginTop: '2mm' }}>
+                            <div className="line-thick" style={{ borderTop: '3px solid black', marginBottom: '1px' }}></div>
+                            <div className="line-thin" style={{ borderTop: '1px solid black' }}></div>
+                          </div>
+
+                          {/* Header Info - Two Column Layout */}
+                          <div className="surat-header-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8mm' }}>
+                            {/* Left: Nomor & Perihal */}
+                            <table style={{ width: 'auto' }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ paddingRight: '10px', verticalAlign: 'top' }}>No</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.nomor}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ paddingRight: '10px', verticalAlign: 'top' }}>Perihal</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top', fontWeight: 'bold' }}>{data.perihal}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            
+                            {/* Right: Tanggal */}
+                            <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {data.tempat}, {data.tanggal}
                             </div>
                           </div>
-                          {data.logoKanan && (
-                            <img src={data.logoKanan} alt="Logo Kanan" className="kop-logo-kanan" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, margin: 'auto', width: '18mm', height: '18mm', objectFit: 'contain' }} />
-                          )}
-                        </div>
 
-                        {/* Divider */}
-                        <div className="divider-line-container" style={{ width: '100%', marginBottom: '8mm', marginTop: '2mm' }}>
-                          <div className="line-thick" style={{ borderTop: '3px solid black', marginBottom: '1px' }}></div>
-                          <div className="line-thin" style={{ borderTop: '1px solid black' }}></div>
-                        </div>
-
-                        {/* Header Info - Two Column Layout */}
-                        <div className="surat-header-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8mm' }}>
-                          {/* Left: Nomor & Perihal */}
-                          <table style={{ width: 'auto' }}>
-                            <tbody>
-                              <tr>
-                                <td style={{ paddingRight: '10px', verticalAlign: 'top' }}>No</td>
-                                <td style={{ verticalAlign: 'top' }}>:</td>
-                                <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.nomor}</td>
-                              </tr>
-                              <tr>
-                                <td style={{ paddingRight: '10px', verticalAlign: 'top' }}>Perihal</td>
-                                <td style={{ verticalAlign: 'top' }}>:</td>
-                                <td style={{ paddingLeft: '10px', verticalAlign: 'top', fontWeight: 'bold' }}>{data.perihal}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                          
-                          {/* Right: Tanggal */}
-                          <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {data.tempat}, {data.tanggal}
+                          {/* Penerima */}
+                          <div className="surat-to" style={{ marginBottom: '8mm' }}>
+                            <div>Kepada Yth.</div>
+                            <div style={{ fontWeight: 'bold' }}>{data.penerima.nama}</div>
+                            {data.penerima.jabatan && (
+                              <div style={{ fontWeight: 'bold' }}>{data.penerima.jabatan}</div>
+                            )}
+                            <div>di_</div>
+                            <div style={{ marginLeft: '20px' }}>{data.penerima.tempat}</div>
                           </div>
-                        </div>
 
-                        {/* Penerima */}
-                        <div className="surat-to" style={{ marginBottom: '8mm' }}>
-                          <div>Kepada Yth.</div>
-                          <div style={{ fontWeight: 'bold' }}>{data.penerima.nama}</div>
-                          {data.penerima.jabatan && (
-                            <div style={{ fontWeight: 'bold' }}>{data.penerima.jabatan}</div>
-                          )}
-                          <div>di_</div>
-                          <div style={{ marginLeft: '20px' }}>{data.penerima.tempat}</div>
-                        </div>
+                          {/* Text Pembuka */}
+                          <div className="surat-body" style={{ marginBottom: '6mm', textAlign: 'justify', whiteSpace: 'pre-line' }}>
+                            {data.textPembuka}
+                          </div>
 
-                        {/* Text Pembuka */}
-                        <div className="surat-body" style={{ marginBottom: '6mm', textAlign: 'justify', whiteSpace: 'pre-line' }}>
-                          {data.textPembuka}
-                        </div>
+                          {/* Detail Acara */}
+                          <div className="surat-body" style={{ marginBottom: '6mm', marginLeft: '20mm' }}>
+                            <table style={{ width: 'auto' }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Hari</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.hari}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tanggal</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tanggal}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tempat</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tempat}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
 
-                        {/* Detail Acara */}
-                        <div className="surat-body" style={{ marginBottom: '6mm', marginLeft: '20mm' }}>
-                          <table style={{ width: 'auto' }}>
-                            <tbody>
-                              <tr>
-                                <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Hari</td>
-                                <td style={{ verticalAlign: 'top' }}>:</td>
-                                <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.hari}</td>
-                              </tr>
-                              <tr>
-                                <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tanggal</td>
-                                <td style={{ verticalAlign: 'top' }}>:</td>
-                                <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tanggal}</td>
-                              </tr>
-                              <tr>
-                                <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tempat</td>
-                                <td style={{ verticalAlign: 'top' }}>:</td>
-                                <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tempat}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                          {/* Text Penutup */}
+                          <div className="surat-closing" style={{ marginBottom: '10mm', textAlign: 'justify', whiteSpace: 'pre-line' }}>
+                            {data.textPenutup}
+                          </div>
 
-                        {/* Text Penutup */}
-                        <div className="surat-closing" style={{ marginBottom: '10mm', textAlign: 'justify', whiteSpace: 'pre-line' }}>
-                          {data.textPenutup}
-                        </div>
-
-                        {/* Signature Section */}
-                        <div className="surat-signature" style={{ marginTop: '15mm' }}>
-                          {/* <div style={{ textAlign: 'right', marginBottom: '50px' }}>
-                            {data.tempat}, {data.tanggal}
-                          </div> */}
-                          
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-                            <div style={{ textAlign: 'center', width: '45%' }}>
-                              <div style={{ marginBottom: '25mm' }}>Ketua Padepokan</div>
-                              <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaKetua}</div>
+                          {/* Signature Section */}
+                          <div className="surat-signature" style={{ marginTop: '15mm' }}>
+                            {/* <div style={{ textAlign: 'right', marginBottom: '50px' }}>
+                              {data.tempat}, {data.tanggal}
+                            </div> */}
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+                              <div style={{ textAlign: 'center', width: '45%' }}>
+                                <div style={{ marginBottom: '25mm' }}>Ketua Padepokan</div>
+                                <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaKetua}</div>
+                              </div>
+                              <div style={{ textAlign: 'center', width: '45%' }}>
+                                <div style={{ marginBottom: '25mm' }}>Sekretaris</div>
+                                <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaSekretaris}</div>
+                              </div>
                             </div>
-                            <div style={{ textAlign: 'center', width: '45%' }}>
-                              <div style={{ marginBottom: '25mm' }}>Sekretaris</div>
-                              <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaSekretaris}</div>
+                            
+                            <div style={{ textAlign: 'center', marginTop: '10mm', width: '100%'}}>
+                              <div>Mengetahui,</div>
+                              <div style={{ marginBottom: '25mm' }}>Guru Besar Padepokan</div>
+                              <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaGuruBesar}</div>
                             </div>
                           </div>
-                          
-                          <div style={{ textAlign: 'center', marginTop: '10mm', width: '100%'}}>
-                            <div>Mengetahui,</div>
-                            <div style={{ marginBottom: '25mm' }}>Guru Besar Padepokan</div>
-                            <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaGuruBesar}</div>
-                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

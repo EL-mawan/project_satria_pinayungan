@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { jenis, tanggal, nominal, keterangan, bukti, kegiatanId } = await request.json()
+    const { jenis, tanggal, nominal, keterangan, bukti, kegiatanId, satuanHarga, qty, satuan } = await request.json()
 
     if (!jenis || !tanggal || !nominal) {
       return NextResponse.json(
@@ -150,6 +150,9 @@ export async function POST(request: NextRequest) {
         jenis,
         tanggal: new Date(tanggal),
         nominal: parseFloat(nominal),
+        satuanHarga: satuanHarga ? parseFloat(satuanHarga) : null,
+        qty: qty ? parseInt(qty) : null,
+        satuan,
         keterangan,
         bukti,
         kegiatanId,

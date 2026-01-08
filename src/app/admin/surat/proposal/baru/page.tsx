@@ -143,7 +143,9 @@ const initialData: ProposalData = {
   },
   rab: [],
   tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-  tempat: '',
+  rab: [],
+  tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+  tempat: 'Serang',
   namaKetua: '',
   namaGuruBesar: '',
   namaKetuaRW: '',
@@ -185,6 +187,18 @@ export default function ProposalBuilderPage() {
   const [rejectionReason, setRejectionReason] = useState<string>('')
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [tempRejectionReason, setTempRejectionReason] = useState('')
+  
+  // Date Input State (YYYY-MM-DD)
+  const [dateInput, setDateInput] = useState(new Date().toISOString().split('T')[0])
+
+  // Sync formatted date to data.tanggal whenever dateInput changes
+  useEffect(() => {
+    if (dateInput) {
+        const date = new Date(dateInput)
+        const formatted = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        setData(prev => ({ ...prev, tanggal: formatted }))
+    }
+  }, [dateInput])
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -374,6 +388,11 @@ export default function ProposalBuilderPage() {
                     setIsViewMode(true)
                 }
             }
+
+            // Load Date from DB
+            if (json.data.tanggal) {
+                setDateInput(new Date(json.data.tanggal).toISOString().split('T')[0])
+            }
             if (json.data.catatan) setRejectionReason(json.data.catatan)
           } catch (e) {
             console.error('Failed to parse proposal JSON', e)
@@ -490,7 +509,9 @@ export default function ProposalBuilderPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          tujuan: `${data.penerima.nama} - ${data.penerima.jabatan || ''} (${data.penerima.alamat || data.penerima.instansi || ''})`,
+          tujuan: bulkRecipients.length > 0 
+            ? `${bulkRecipients.length} Penerima`
+            : `${data.penerima.nama} - ${data.penerima.jabatan || ''} (${data.penerima.alamat || data.penerima.instansi || ''})`,
           perihal: data.perihal,
           jenis: 'PROPOSAL',
           isi: JSON.stringify({ ...data, bulkRecipients }), // Include bulk recipients state
@@ -499,6 +520,8 @@ export default function ProposalBuilderPage() {
           // If editing: maintain status unless it's draft/rejected which should be waiting validasi on regular submit.
           // If new: default to MENUNGGU_VALIDASI (since the button is "Ajukan")
           status: proposalId ? ((proposalStatus === 'DRAFT' || proposalStatus === 'DITOLAK') ? 'MENUNGGU_VALIDASI' : proposalStatus) : 'MENUNGGU_VALIDASI',
+          // Force Date to match user input
+          tanggal: new Date(dateInput).toISOString(),
           // IF status is REJECTED, explicitly ensure reset (redundant but safe)
           ...(proposalStatus === 'DITOLAK' ? { status: 'MENUNGGU_VALIDASI', catatan: null } : {})
         })
@@ -662,7 +685,7 @@ export default function ProposalBuilderPage() {
                           * { font-family: 'Crimson Pro', serif !important; color: #000 !important; }
                           .proposal-page { width: 794px !important; height: 1123px !important; padding: 50px 80px !important; background: white !important; }
                           .kop-wrapper { display: flex !important; justify-content: space-between !important; align-items: center !important; }
-                          .kop-logo { width: 85px !important; height: 85px !important; object-fit: contain !important; }
+                          .kop-logo { width: 22mm !important; height: 22mm !important; object-fit: contain !important; }
                           .kop-text { text-align: center !important; flex: 1 !important; }
                           .divider-line-container { width: 100% !important; margin-bottom: 20px !important; }
                           .line-thick { border-top: 2.5px solid black !important; margin-bottom: 1.5px !important; }
@@ -776,8 +799,8 @@ export default function ProposalBuilderPage() {
               }
 
               .kop-logo {
-                 width: 85px !important;
-                 height: 85px !important;
+                 width: 22mm !important;
+                 height: 22mm !important;
                  object-fit: contain !important;
               }
 
@@ -955,6 +978,26 @@ export default function ProposalBuilderPage() {
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700 ml-1">Lampiran</Label>
                     <Input className="h-12 rounded-2xl border-slate-200" value={data.lampiran} onChange={(e) => setData({ ...data, lampiran: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-2">
+                        <Label className="font-bold text-slate-700 ml-1">Tempat Surat</Label>
+                        <Input 
+                            className="h-12 rounded-2xl border-slate-200" 
+                            value={data.tempat} 
+                            onChange={(e) => setData({ ...data, tempat: e.target.value })} 
+                            placeholder="Contoh: Serang"
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <Label className="font-bold text-slate-700 ml-1">Tanggal Surat</Label>
+                        <Input 
+                            type="date"
+                            className="h-12 rounded-2xl border-slate-200" 
+                            value={dateInput}
+                            onChange={(e) => setDateInput(e.target.value)} 
+                        />
+                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -1969,7 +2012,7 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
         {/* Kop Surat Flex Layout for Perfect Alignment */}
         <div className="kop-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', width: '100%' }}>
             <div style={{ width: '90px', display: 'flex', justifyContent: 'center' }}>
-                <img className="kop-logo" src={data.logoKiri || "/padepokan-logo.png"} alt="Logo" style={{ width: '85px', height: '85px', objectFit: 'contain' }} />
+                <img className="kop-logo" src={data.logoKiri || "/padepokan-logo.png"} alt="Logo" style={{ width: '83px', height: '83px', objectFit: 'contain' }} />
             </div>
             
             <div className="kop-text" style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
@@ -1987,7 +2030,7 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
             </div>
 
             <div style={{ width: '90px', display: 'flex', justifyContent: 'center' }}>
-                <img className="kop-logo" src={data.logoKanan || "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Ipsi_logo.png/600px-Ipsi_logo.png"} alt="Logo" style={{ width: '85px', height: '85px', objectFit: 'contain' }} />
+                <img className="kop-logo" src={data.logoKanan || "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Ipsi_logo.png/600px-Ipsi_logo.png"} alt="Logo" style={{ width: '83px', height: '83px', objectFit: 'contain' }} />
             </div>
             
         </div>

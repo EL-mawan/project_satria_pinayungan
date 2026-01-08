@@ -33,6 +33,7 @@ interface DashboardStats {
   totalPengeluaran: number
   suratMenunggu: number
   lpjMenunggu: number
+  recentActivities: any[]
 }
 
 export default function DashboardPage() {
@@ -44,27 +45,35 @@ export default function DashboardPage() {
     totalPemasukan: 0,
     totalPengeluaran: 0,
     suratMenunggu: 0,
-    lpjMenunggu: 0
+    lpjMenunggu: 0,
+    recentActivities: []
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Simulasi loading data
     const loadDashboardData = async () => {
-      // Mock data
-      setTimeout(() => {
-        setStats({
-          totalAnggota: 150,
-          anggotaAktif: 142,
-          totalKegiatan: 24,
-          kegiatanTerjadwal: 8,
-          totalPemasukan: 15000000,
-          totalPengeluaran: 8500000,
-          suratMenunggu: 3,
-          lpjMenunggu: 2
-        })
+      try {
+        const res = await fetch('/api/dashboard/stats')
+        if (res.ok) {
+          const data = await res.json()
+          setStats({
+            totalAnggota: data.totalAnggota,
+            anggotaAktif: data.anggotaAktif,
+            totalKegiatan: data.totalKegiatan,
+            kegiatanTerjadwal: data.kegiatanTerjadwal,
+            totalPemasukan: data.totalPemasukan,
+            totalPengeluaran: data.totalPengeluaran,
+            suratMenunggu: data.suratMenunggu,
+            lpjMenunggu: data.lpjMenunggu,
+            recentActivities: data.recentActivities || []
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard data', error)
+      } finally {
         setLoading(false)
-      }, 1000)
+      }
     }
 
     loadDashboardData()
@@ -117,38 +126,7 @@ export default function DashboardPage() {
     }
   ]
 
-  const recentActivities = [
-    {
-      id: 1,
-      title: 'Latihan Rutin Mingguan',
-      subtitle: 'Bidang Pembinaan Prestasi',
-      type: 'kegiatan',
-      status: 'selesai',
-      date: '15 Jan 2024',
-      amount: 'Rp 250.000',
-      location: 'Padepokan Utama'
-    },
-    {
-      id: 2,
-      title: 'Pengesahan Sabuk Hijau',
-      subtitle: 'Program Sertifikasi Anggota',
-      type: 'kegiatan',
-      status: 'terjadwal',
-      date: '20 Jan 2024',
-      amount: 'Rp 1.500.000',
-      location: 'Gedung Serbaguna'
-    },
-    {
-      id: 3,
-      title: 'Permohonan Dana Operasional',
-      subtitle: 'Administrasi Umum',
-      type: 'surat',
-      status: 'menunggu',
-      date: '14 Jan 2024',
-      amount: 'Rp 5.000.000',
-      location: 'Sekretariat'
-    }
-  ]
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -185,13 +163,7 @@ export default function DashboardPage() {
           <p className="text-slate-500 mt-1 font-medium">Ini adalah ringkasan performa Padepokan Satria Pinayungan hari ini.</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="outline" className="rounded-xl border-slate-200 h-11 font-bold text-slate-600">
-            Export Data
-          </Button>
-          <Button className="rounded-xl bg-[#5E17EB] hover:bg-[#4a11c0] h-11 font-bold shadow-lg shadow-[#5E17EB]/20">
-            <Plus className="h-5 w-5 mr-2" />
-            Tambah Baru
-          </Button>
+           {/* Buttons removed as requested */}
         </div>
       </div>
 
@@ -233,7 +205,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-4">
-            {recentActivities.map((activity) => (
+            {stats.recentActivities.map((activity) => (
               <Card key={activity.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-4xl hover:shadow-lg transition-all duration-300 bg-white group cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6">

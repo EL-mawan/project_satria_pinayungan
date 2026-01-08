@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,12 +35,17 @@ import {
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import LaporanPDF from './components/LaporanPDF'
 
 interface Pemasukan {
   id: string
   sumber: string
   tanggal: string
   nominal: number
+  unitSumber?: string
+  qty?: number
   keterangan?: string
   bukti?: string
 }
@@ -50,6 +55,9 @@ interface Pengeluaran {
   jenis: string
   tanggal: string
   nominal: number
+  satuanHarga?: number
+  qty?: number
+  satuan?: string
   keterangan?: string
   bukti?: string
   kegiatan?: {
@@ -85,6 +93,7 @@ export default function KeuanganPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showLPJDialog, setShowLPJDialog] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   
   const [editingId, setEditingId] = useState<string | null>(null)
   
@@ -93,6 +102,10 @@ export default function KeuanganPage() {
     jenis: '',
     tanggal: new Date().toISOString().split('T')[0],
     nominal: '',
+    unitSumber: '',
+    qty: '',
+    satuanHarga: '',
+    satuan: '',
     keterangan: '',
     kegiatanId: '',
     bukti: ''
@@ -103,6 +116,21 @@ export default function KeuanganPage() {
     tanggalMulai: '',
     tanggalSelesai: '',
     keterangan: ''
+  })
+
+  // PDF Data State for filtered report
+  const [pdfData, setPdfData] = useState<{
+    pemasukanList: Pemasukan[]
+    pengeluaranList: Pengeluaran[]
+    summary: { totalPemasukan: number; totalPengeluaran: number; saldo: number }
+    tanggalMulai?: string
+    tanggalSelesai?: string
+  }>({
+    pemasukanList: [],
+    pengeluaranList: [],
+    summary: { totalPemasukan: 0, totalPengeluaran: 0, saldo: 0 },
+    tanggalMulai: '',
+    tanggalSelesai: ''
   })
 
   const [summary, setSummary] = useState({
@@ -213,6 +241,17 @@ export default function KeuanganPage() {
     }))
   }, [summary.totalPemasukan, summary.totalPengeluaran])
 
+  // Auto-calculate nominal for Pengeluaran
+  useEffect(() => {
+    if (activeTab === 'pengeluaran') {
+      const price = parseFloat(formData.satuanHarga) || 0
+      const qty = parseFloat(formData.qty) || 0
+      if (price > 0 && qty > 0) {
+        setFormData(prev => ({ ...prev, nominal: (price * qty).toString() }))
+      }
+    }
+  }, [formData.satuanHarga, formData.qty, activeTab])
+
   const handleCreateRecord = async () => {
     setCreateLoading(true)
     let endpoint = activeTab === 'pemasukan' ? '/api/keuangan/pemasukan' : '/api/keuangan/pengeluaran'
@@ -228,15 +267,20 @@ export default function KeuanganPage() {
           sumber: formData.sumber, 
           tanggal: formData.tanggal, 
           nominal: formData.nominal, 
+          unitSumber: formData.unitSumber,
+          qty: formData.qty,
           keterangan: formData.keterangan,
           bukti: formData.bukti 
         }
       : { 
           jenis: formData.jenis, 
           tanggal: formData.tanggal, 
-          nominal: formData.nominal, 
+          nominal: formData.nominal,
+          satuanHarga: formData.satuanHarga,
+          qty: formData.qty,
+          satuan: formData.satuan, 
           keterangan: formData.keterangan, 
-          kegiatanId: formData.kegiatanId,
+          kegiatanId: (formData.kegiatanId === 'none' || !formData.kegiatanId) ? null : formData.kegiatanId,
           bukti: formData.bukti
         }
 
@@ -260,6 +304,10 @@ export default function KeuanganPage() {
           jenis: '',
           tanggal: new Date().toISOString().split('T')[0],
           nominal: '',
+          unitSumber: '',
+          qty: '',
+          satuanHarga: '',
+          satuan: '',
           keterangan: '',
           kegiatanId: '',
           bukti: ''
@@ -317,6 +365,10 @@ export default function KeuanganPage() {
       jenis: item.jenis || '',
       tanggal: new Date(item.tanggal).toISOString().split('T')[0],
       nominal: item.nominal.toString(),
+      unitSumber: item.unitSumber || '',
+      qty: item.qty ? item.qty.toString() : '',
+      satuanHarga: item.satuanHarga ? item.satuanHarga.toString() : '',
+      satuan: item.satuan || '',
       keterangan: item.keterangan || '',
       kegiatanId: item.kegiatan?.id || 'none',
       bukti: item.bukti || ''
@@ -359,6 +411,104 @@ export default function KeuanganPage() {
     }
   }
 
+  /* PDF Download Handler */
+  const pdfRef = useRef<HTMLDivElement>(null)
+  
+  const handleDownloadPDF = async (lpj: LPJ) => {
+    if (!pdfRef.current) return
+    
+    setIsGeneratingPdf(true)
+    const toastId = toast.loading('Menyiapkan data laporan...')
+    
+    try {
+      // 1. Filter data based on LPJ dates
+      const startDate = new Date(lpj.tanggalMulai)
+      const endDate = new Date(lpj.tanggalSelesai)
+      // Adjust endDate to include the full day
+      endDate.setHours(23, 59, 59, 999)
+
+      const filteredPemasukan = pemasukanList.filter(item => {
+        const date = new Date(item.tanggal)
+        return date >= startDate && date <= endDate
+      })
+
+      const filteredPengeluaran = pengeluaranList.filter(item => {
+        const date = new Date(item.tanggal)
+        return date >= startDate && date <= endDate
+      })
+
+      const totalPemasukan = filteredPemasukan.reduce((acc, curr) => acc + curr.nominal, 0)
+      const totalPengeluaran = filteredPengeluaran.reduce((acc, curr) => acc + curr.nominal, 0)
+
+      // 2. Set PDF Data
+      setPdfData({
+        pemasukanList: filteredPemasukan,
+        pengeluaranList: filteredPengeluaran,
+        summary: {
+          totalPemasukan,
+          totalPengeluaran,
+          saldo: totalPemasukan - totalPengeluaran
+        },
+        tanggalMulai: lpj.tanggalMulai,
+        tanggalSelesai: lpj.tanggalSelesai
+      })
+
+      // 3. Wait for render (short delay to ensure state update and DOM sync)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const element = pdfRef.current
+      
+      const canvas = await html2canvas(element, {
+        scale: 2, 
+        logging: false,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+           const styles = clonedDoc.getElementsByTagName('style')
+           const links = clonedDoc.getElementsByTagName('link')
+           
+           // Convert to arrays and remove all stylesheets
+           Array.from(styles).forEach(style => style.remove())
+           Array.from(links).forEach(link => {
+             if (link.rel === 'stylesheet') {
+               link.remove()
+             }
+           })
+           
+           // Ensure the captured element is visible in the clone
+           const clonedElement = clonedDoc.getElementById('laporan-pdf')
+           if (clonedElement) {
+             clonedElement.style.display = 'block'
+             clonedElement.style.visibility = 'visible'
+             // Force override background to ensure no inheritance issues
+             clonedElement.style.backgroundColor = '#ffffff'
+             clonedElement.style.color = '#000000'
+           }
+        }
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+      
+      const imgWidth = 210
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      pdf.save(`Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}.pdf`)
+      
+      toast.success('Laporan berhasil diunduh', { id: toastId })
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast.error('Gagal membuat PDF. Silakan coba lagi.', { id: toastId })
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
@@ -374,6 +524,18 @@ export default function KeuanganPage() {
 
   return (
     <div className="space-y-10 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Off-screen PDF Component for Capture */}
+      <div className="fixed top-0 left-[-9999px] -z-50">
+        <LaporanPDF 
+          ref={pdfRef}
+          pemasukanList={pdfData.pemasukanList}
+          pengeluaranList={pdfData.pengeluaranList}
+          summary={pdfData.summary}
+          tanggalMulai={pdfData.tanggalMulai}
+          tanggalSelesai={pdfData.tanggalSelesai}
+        />
+      </div>
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Manajemen Keuangan</h1>
@@ -430,14 +592,7 @@ export default function KeuanganPage() {
           </div>
 
           <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            <Button 
-              variant="outline"
-              className="rounded-xl h-11 font-bold border-slate-200 text-slate-600 hover:bg-slate-50 w-full md:w-auto"
-              onClick={() => window.print()}
-            >
-              <Download className="h-5 w-5 mr-2" />
-              Download Laporan
-            </Button>
+            {/* Download button moved to LPJ */}
             <Button 
               className={`rounded-xl h-11 font-bold shadow-lg transition-all w-full md:w-auto ${
                 activeTab === 'pemasukan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 
@@ -535,7 +690,7 @@ export default function KeuanganPage() {
                     </div>
                     <div className="flex items-center space-x-1">
                       <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-[#5E17EB] hover:bg-[#5E17EB]/5" onClick={() => handleEdit(item)}>
-                        <Edit className="h-4 w-4" />
+                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(item.id)}>
                         <Trash2 className="h-4 w-4" />
@@ -596,8 +751,23 @@ export default function KeuanganPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-[#5E17EB] hover:bg-[#5E17EB]/5">
-                          <Download className="h-5 w-5" />
+                        <Button 
+                          variant="outline"
+                          className="rounded-xl h-10 font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+                          onClick={() => handleDownloadPDF(item)}
+                          disabled={isGeneratingPdf}
+                        >
+                          {isGeneratingPdf ? (
+                             <span className="flex items-center gap-2">
+                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent"></div>
+                               <span>Memproses...</span>
+                             </span>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4 mr-2" />
+                              Download PDF LPJ
+                            </>
+                          )}
                         </Button>
                         <Button className="rounded-xl bg-slate-900 text-white font-bold h-10 px-4">
                           Detail
@@ -629,6 +799,10 @@ export default function KeuanganPage() {
             jenis: '',
             tanggal: new Date().toISOString().split('T')[0],
             nominal: '',
+            unitSumber: '',
+            qty: '',
+            satuanHarga: '',
+            satuan: '',
             keterangan: '',
             kegiatanId: '',
             bukti: ''
@@ -651,7 +825,7 @@ export default function KeuanganPage() {
           <div className="p-8 space-y-5 bg-white">
             <div className="space-y-2">
               <Label className="font-bold text-slate-700 ml-1">
-                {activeTab === 'pemasukan' ? 'Sumber Pemasukan' : 'Jenis Pengeluaran'}
+                {activeTab === 'pemasukan' ? 'Sumber Pemasukan' : 'Nama Barang / Jenis Pengeluaran'}
               </Label>
               <Input
                 placeholder={activeTab === 'pemasukan' ? "Contoh: Iuran Bulanan" : "Contoh: Konsumsi Latihan"}
@@ -671,8 +845,57 @@ export default function KeuanganPage() {
                   onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
                 />
               </div>
+              
+              {activeTab === 'pemasukan' ? (
+                <div className="space-y-2">
+                  <Label className="font-bold text-slate-700 ml-1">Unit Sumber</Label>
+                  <Input
+                    placeholder="Contoh: Orang"
+                    className="h-12 rounded-2xl border-slate-200"
+                    value={formData.unitSumber}
+                    onChange={(e) => setFormData({ ...formData, unitSumber: e.target.value })}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                   <Label className="font-bold text-slate-700 ml-1">Satuan Harga</Label>
+                   <Input
+                     type="number"
+                     placeholder="0"
+                     className="h-12 rounded-2xl border-slate-200"
+                     value={formData.satuanHarga}
+                     onChange={(e) => setFormData({ ...formData, satuanHarga: e.target.value })}
+                   />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label className="font-bold text-slate-700 ml-1">Nominal (Rp)</Label>
+                <Label className="font-bold text-slate-700 ml-1">Qty</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  className="h-12 rounded-2xl border-slate-200"
+                  value={formData.qty}
+                  onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
+                />
+              </div>
+              
+              {activeTab === 'pengeluaran' && (
+                <div className="space-y-2">
+                  <Label className="font-bold text-slate-700 ml-1">Satuan</Label>
+                  <Input
+                    placeholder="Pcs/Kg"
+                    className="h-12 rounded-2xl border-slate-200"
+                    value={formData.satuan}
+                    onChange={(e) => setFormData({ ...formData, satuan: e.target.value })}
+                  />
+                </div>
+              )}
+              
+              <div className={`${activeTab === 'pengeluaran' ? 'col-span-1' : 'col-span-2'} space-y-2`}>
+                <Label className="font-bold text-slate-700 ml-1">Total (Rp)</Label>
                 <Input
                   type="number"
                   placeholder="0"

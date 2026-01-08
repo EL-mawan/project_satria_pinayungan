@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -29,6 +29,8 @@ model User {
   suratMasuk SuratMasuk[]
   suratKeluar SuratKeluar[]
   lpj LPJ[]
+  sentMessages Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -194,6 +196,8 @@ model Pemasukan {
   sumber      String
   tanggal     DateTime
   nominal     Float
+  unitSumber  String?
+  qty         Int?
   keterangan  String?
   bukti       String?
   userId      String
@@ -209,6 +213,9 @@ model Pengeluaran {
   jenis       String
   tanggal     DateTime
   nominal     Float
+  satuanHarga Float?
+  qty         Int?
+  satuan      String?
   keterangan  String?
   bukti       String?
   userId      String
@@ -310,6 +317,25 @@ model ContactMessage {
   updatedAt DateTime @updatedAt
 
   @@map("contact_messages")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  senderId  String
+  receiverId String
+  messageType String @default("text") // text, image, document, video, audio
+  attachmentUrl String?
+  attachmentName String?
+  attachmentSize Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
 }
 
 // Enums

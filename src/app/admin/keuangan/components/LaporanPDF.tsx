@@ -134,7 +134,7 @@ const LaporanPDF = forwardRef<HTMLDivElement, LaporanPDFProps>(({
   const Kop = () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '4px solid #000000', paddingBottom: '2px', marginBottom: '24px' }}>
       <div style={{ width: '96px', height: '96px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src="/padepokan-logo.png" alt="Logo Padepokan" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <img src="/padepokan-logo.png" alt="Logo Padepokan" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </div>
       <div style={{ textAlign: 'center', flex: 1, padding: '0 8px' }}>
         <h1 style={{ fontSize: '16px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em', lineHeight: '1.2' }}>PADEPOKAN SATRIA PINAYUNGAN RAGAS GRENYANG</h1>
@@ -148,7 +148,7 @@ const LaporanPDF = forwardRef<HTMLDivElement, LaporanPDFProps>(({
 
   const CurrencyData = ({ value }: { value: number }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-      <span>IDR</span>
+      <span>Rp</span>
       <span>{formatCurrencyValue(value)}</span>
     </div>
   )

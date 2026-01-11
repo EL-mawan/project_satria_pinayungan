@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 
 const IDR = ({ className }: { className?: string }) => (
-  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>Rp</div>
 )
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -144,8 +144,6 @@ const initialData: ProposalData = {
     ],
     operasional: []
   },
-  rab: [],
-  tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
   rab: [],
   tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
   tempat: 'Serang',
@@ -519,7 +517,6 @@ export default function ProposalBuilderPage() {
           jenis: 'PROPOSAL',
           isi: JSON.stringify({ ...data, bulkRecipients }), // Include bulk recipients state
           template: 'PROPOSAL_MODERN', // Keeping this tag for identifying the specialized format
-          tanggal: new Date().toISOString(),
           // If editing: maintain status unless it's draft/rejected which should be waiting validasi on regular submit.
           // If new: default to MENUNGGU_VALIDASI (since the button is "Ajukan")
           status: proposalId ? ((proposalStatus === 'DRAFT' || proposalStatus === 'DITOLAK') ? 'MENUNGGU_VALIDASI' : proposalStatus) : 'MENUNGGU_VALIDASI',

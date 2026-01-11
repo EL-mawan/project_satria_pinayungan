@@ -40,7 +40,7 @@ import html2canvas from 'html2canvas'
 import LaporanPDF from './components/LaporanPDF'
 
 const IDR = ({ className }: { className?: string }) => (
-  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>Rp</div>
 )
 
 interface Pemasukan {
@@ -164,7 +164,7 @@ function KeuanganContent() {
   })
 
   const formatCurrency = (amount: number) => {
-    return 'IDR ' + new Intl.NumberFormat('id-ID', {
+    return 'Rp ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
   }
@@ -495,23 +495,14 @@ function KeuanganContent() {
         backgroundColor: '#ffffff',
         windowWidth: 794, // Approx 210mm at 96dpi
         onclone: (clonedDoc) => {
-           const styles = clonedDoc.getElementsByTagName('style')
-           const links = clonedDoc.getElementsByTagName('link')
-           
-           Array.from(styles).forEach(style => style.remove())
-           Array.from(links).forEach(link => {
-             if (link.rel === 'stylesheet') {
-               link.remove()
-             }
-           })
-           
-           const clonedElement = clonedDoc.getElementById('laporan-pdf')
-           if (clonedElement) {
-             clonedElement.style.display = 'block'
-             clonedElement.style.visibility = 'visible'
-             clonedElement.style.backgroundColor = '#ffffff'
-             clonedElement.style.color = '#000000'
-           }
+          const clonedElement = clonedDoc.getElementById('laporan-pdf')
+          if (clonedElement) {
+            clonedElement.style.display = 'block'
+            clonedElement.style.visibility = 'visible'
+            clonedElement.style.position = 'relative'
+            clonedElement.style.left = '0'
+            clonedElement.style.top = '0'
+          }
         }
       })
       
@@ -545,7 +536,7 @@ function KeuanganContent() {
       toast.success('Laporan berhasil diunduh', { id: toastId })
     } catch (error) {
       console.error('Error generating PDF:', error)
-      toast.error('Gagal membuat PDF. Silakan coba lagi.', { id: toastId })
+      toast.error(`Gagal membuat PDF: ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`, { id: toastId })
     } finally {
       setIsGeneratingPdf(false)
     }

@@ -135,7 +135,7 @@ export default function AdminLayout({
   }
 
 const IDR = ({ className }: { className?: string }) => (
-  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>Rp</div>
 )
 
   const menuItems = [

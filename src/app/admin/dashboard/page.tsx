@@ -24,7 +24,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const IDR = ({ className }: { className?: string }) => (
-  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>Rp</div>
 )
 
 interface DashboardStats {
@@ -94,7 +94,7 @@ export default function DashboardPage() {
   }, [])
 
   const formatCurrency = (amount: number) => {
-    return 'IDR ' + new Intl.NumberFormat('id-ID', {
+    return 'Rp ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
   }

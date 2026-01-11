@@ -453,39 +453,39 @@ export default function LpjPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700 px-2 md:px-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Laporan Pertanggungjawaban (LPJ)</h1>
-          <p className="text-slate-500 font-medium">Arsip dan pengelolaan laporan keuangan padepokan.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Laporan Pertanggungjawaban (LPJ)</h1>
+          <p className="text-sm md:text-base text-slate-500 font-medium">Arsip dan pengelolaan laporan keuangan padepokan.</p>
         </div>
         <div className="flex gap-2">
             <Button 
-                className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl font-bold h-12 px-6 shadow-lg shadow-indigo-100"
+                className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl font-bold h-11 md:h-12 px-4 md:px-6 shadow-lg shadow-indigo-100 w-full md:w-auto text-sm md:text-base"
                 onClick={() => setShowCreateDialog(true)}
             >
-                <Plus className="mr-2 h-5 w-5" /> Buat LPJ
+                <Plus className="mr-2 h-4 md:h-5 w-4 md:w-5" /> Buat LPJ
             </Button>
         </div>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
           { label: 'Total LPJ', value: lpjList.length, icon: FileText, color: 'text-indigo-600', bg: 'bg-indigo-50' },
           { label: 'Disetujui', value: lpjList.filter(l => l.status === 'DISETUJUI').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Menunggu', value: lpjList.filter(l => l.status === 'DIAJUKAN').length, icon: Info, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Draft', value: lpjList.filter(l => l.status === 'DRAFT').length, icon: Edit, color: 'text-slate-600', bg: 'bg-slate-50' },
         ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm rounded-2xl overflow-hidden">
-            <CardContent className="p-5 flex items-center space-x-4">
-              <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+          <Card key={i} className="border-none shadow-sm rounded-xl md:rounded-2xl overflow-hidden">
+            <CardContent className="p-3 md:p-5 flex items-center space-x-2 md:space-x-4">
+              <div className={`p-2 md:p-3 rounded-lg md:rounded-xl ${stat.bg} ${stat.color}`}>
+                <stat.icon className="h-4 md:h-5 w-4 md:w-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <p className="text-xl font-black text-slate-900">{stat.value}</p>
+                <p className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-wider md:tracking-widest">{stat.label}</p>
+                <p className="text-lg md:text-xl font-black text-slate-900">{stat.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -493,36 +493,36 @@ export default function LpjPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
+      <Card className="border-none shadow-sm rounded-xl md:rounded-2xl bg-white overflow-hidden">
+        <CardContent className="p-3 md:p-4 flex flex-col sm:flex-row gap-3 md:gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
               placeholder="Cari periode atau keterangan..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyUp={(e) => e.key === 'Enter' && fetchLPJ()}
-              className="pl-11 h-11 bg-slate-50 border-none rounded-xl focus-visible:ring-indigo-500/20"
+              className="pl-10 md:pl-11 h-10 md:h-11 bg-slate-50 border-none rounded-lg md:rounded-xl focus-visible:ring-indigo-500/20 text-sm md:text-base"
             />
           </div>
           <div className="flex gap-2">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[160px] h-11 rounded-xl border-slate-200">
+                <SelectTrigger className="w-full sm:w-[140px] md:w-[160px] h-10 md:h-11 rounded-lg md:rounded-xl border-slate-200 text-sm md:text-base">
                     <SelectValue placeholder="Semua Status" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200">
-                    <SelectItem value="ALL" className="font-bold">Semua Status</SelectItem>
+                <SelectContent className="rounded-lg md:rounded-xl border-slate-200">
+                    <SelectItem value="ALL" className="font-bold text-sm md:text-base">Semua Status</SelectItem>
                     {[
                       { v: 'DRAFT', l: 'Draft' },
                       { v: 'DIAJUKAN', l: 'Diajukan' },
                       { v: 'DISETUJUI', l: 'Disetujui' },
                       { v: 'DITOLAK', l: 'Ditolak' }
                     ].map(item => (
-                      <SelectItem key={item.v} value={item.v} className="font-medium">{item.l}</SelectItem>
+                      <SelectItem key={item.v} value={item.v} className="font-medium text-sm md:text-base">{item.l}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
-            <Button onClick={fetchLPJ} className="h-11 rounded-xl bg-slate-900 border-none px-6 font-bold hover:bg-black transition-all">
+            <Button onClick={fetchLPJ} className="h-10 md:h-11 rounded-lg md:rounded-xl bg-slate-900 border-none px-4 md:px-6 font-bold hover:bg-black transition-all text-sm md:text-base">
               Terapkan
             </Button>
           </div>
@@ -550,68 +550,68 @@ export default function LpjPage() {
             </div>
         ) : (
             lpjList.map((lpj) => (
-                <Card key={lpj.id} className="border-none shadow-sm rounded-3xl group hover:shadow-md transition-all duration-300 bg-white overflow-hidden">
+                <Card key={lpj.id} className="border-none shadow-sm rounded-2xl md:rounded-3xl group hover:shadow-md transition-all duration-300 bg-white overflow-hidden">
                     <CardContent className="p-0 flex flex-col lg:flex-row items-stretch">
-                        <div className="p-6 flex-1 border-r border-slate-50">
-                            <div className="flex items-center space-x-3 mb-4">
-                                <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-[#5E17EB] transition-colors">{lpj.periode}</h3>
-                                <Badge className={`rounded-full px-3 font-bold border-none ${getStatusBadge(lpj.status)}`}>
+                        <div className="p-4 md:p-6 flex-1 lg:border-r border-slate-50">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-2 sm:space-y-0 mb-4">
+                                <h3 className="text-base md:text-xl font-extrabold text-slate-900 group-hover:text-[#5E17EB] transition-colors wrap-break-word">{lpj.periode}</h3>
+                                <Badge className={`rounded-full px-2 md:px-3 py-1 font-bold border-none text-xs md:text-sm w-fit ${getStatusBadge(lpj.status)}`}>
                                     {lpj.status}
                                 </Badge>
                             </div>
                             
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pemasukan</p>
-                                    <p className="font-extrabold text-emerald-600">{formatCurrency(lpj.totalPemasukan)}</p>
+                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider md:tracking-widest mb-1">Pemasukan</p>
+                                    <p className="text-xs md:text-base font-extrabold text-emerald-600 wrap-break-word">{formatCurrency(lpj.totalPemasukan)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pengeluaran</p>
-                                    <p className="font-extrabold text-rose-600">{formatCurrency(lpj.totalPengeluaran)}</p>
+                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider md:tracking-widest mb-1">Pengeluaran</p>
+                                    <p className="text-xs md:text-base font-extrabold text-rose-600 wrap-break-word">{formatCurrency(lpj.totalPengeluaran)}</p>
                                 </div>
-                                <div className="hidden md:block">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sisa Saldo</p>
-                                    <p className="font-extrabold text-[#5E17EB]">{formatCurrency(lpj.saldo)}</p>
+                                <div className="col-span-2 md:col-span-1">
+                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider md:tracking-widest mb-1">Sisa Saldo</p>
+                                    <p className="text-xs md:text-base font-extrabold text-[#5E17EB] wrap-break-word">{formatCurrency(lpj.saldo)}</p>
                                 </div>
                             </div>
                             
-                            <div className="mt-6 flex flex-wrap items-center text-xs font-bold text-slate-400 gap-y-2 gap-x-4">
+                            <div className="mt-4 md:mt-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center text-[10px] md:text-xs font-bold text-slate-400 gap-2 md:gap-y-2 md:gap-x-4">
                                 <div className="flex items-center">
-                                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                                    {formatIDDate(lpj.tanggalMulai)} - {formatIDDate(lpj.tanggalSelesai)}
+                                    <Calendar className="h-3 md:h-3.5 w-3 md:w-3.5 mr-1.5 shrink-0" />
+                                    <span className="wrap-break-word">{formatIDDate(lpj.tanggalMulai)} - {formatIDDate(lpj.tanggalSelesai)}</span>
                                 </div>
                                 <div className="flex items-center">
-                                    <Avatar className="h-6 w-6 mr-2">
-                                        <AvatarFallback className="bg-slate-100 text-[10px]">{lpj.user.name.charAt(0)}</AvatarFallback>
+                                    <Avatar className="h-5 md:h-6 w-5 md:w-6 mr-2 shrink-0">
+                                        <AvatarFallback className="bg-slate-100 text-[9px] md:text-[10px]">{lpj.user.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    {lpj.user.name}
+                                    <span className="truncate">{lpj.user.name}</span>
                                 </div>
                             </div>
                         </div>
                         
-                        <div className="p-6 flex flex-row lg:flex-col justify-center items-center gap-3 lg:border-l lg:border-slate-100 bg-slate-50/30">
+                        <div className="p-3 md:p-6 flex flex-row flex-wrap lg:flex-col justify-center items-center gap-2 md:gap-3 lg:border-l lg:border-slate-100 bg-slate-50/30 border-t lg:border-t-0">
                             <Button 
                                 variant="outline" 
                                 size="icon"
-                                className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-[#5E17EB] hover:border-[#5E17EB]/30 hover:bg-indigo-50 transition-all duration-300 shadow-sm" 
+                                className="h-10 w-10 md:h-11 md:w-11 rounded-xl md:rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-[#5E17EB] hover:border-[#5E17EB]/30 hover:bg-indigo-50 transition-all duration-300 shadow-sm" 
                                 onClick={() => {
                                     setSelectedLPJ(lpj)
                                     setShowDetailDialog(true)
                                 }}
                                 title="Lihat Detail"
                             >
-                                <Eye className="h-5 w-5" />
+                                <Eye className="h-4 md:h-5 w-4 md:w-5" />
                             </Button>
 
                             <Button 
                                 variant="outline" 
                                 size="icon"
-                                className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all duration-300 shadow-sm" 
+                                className="h-10 w-10 md:h-11 md:w-11 rounded-xl md:rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all duration-300 shadow-sm" 
                                 onClick={() => handleDownloadPDF(lpj)}
                                 disabled={isGeneratingPdf || (lpj.status !== 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role))}
                                 title="Download LPJ"
                             >
-                                {isGeneratingPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                                {isGeneratingPdf ? <Loader2 className="h-4 md:h-5 w-4 md:w-5 animate-spin" /> : <Download className="h-4 md:h-5 w-4 md:w-5" />}
                             </Button>
                             
                             {(lpj.user.email === currentUser?.email || ['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role)) && (
@@ -619,22 +619,22 @@ export default function LpjPage() {
                                     <Button 
                                         variant="outline" 
                                         size="icon"
-                                        className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 transition-all duration-300 shadow-sm" 
+                                        className="h-10 w-10 md:h-11 md:w-11 rounded-xl md:rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 transition-all duration-300 shadow-sm" 
                                         onClick={() => handleEditLPJ(lpj)}
                                         disabled={lpj.status === 'DISETUJUI' && !['MASTER_ADMIN', 'KETUA'].includes(currentUser?.role)}
                                         title="Edit Laporan"
                                     >
-                                        <Edit className="h-5 w-5" />
+                                        <Edit className="h-4 md:h-5 w-4 md:w-5" />
                                     </Button>
                                     <Button 
                                         variant="outline" 
                                         size="icon"
-                                        className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all duration-300 shadow-sm" 
+                                        className="h-10 w-10 md:h-11 md:w-11 rounded-xl md:rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all duration-300 shadow-sm" 
                                         onClick={() => handleDeleteLPJ(lpj.id)}
                                         disabled={lpj.status === 'DISETUJUI' && currentUser?.role === 'BENDAHARA'}
                                         title="Hapus Laporan"
                                     >
-                                        <Trash2 className="h-5 w-5" />
+                                        <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
                                     </Button>
                                 </>
                             )}

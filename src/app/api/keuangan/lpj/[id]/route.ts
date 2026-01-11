@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { robustDbOperation, formatDatabaseError } from '@/lib/db-utils'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
@@ -26,36 +27,44 @@ export async function GET(
 
   try {
     const { id } = await params
-    const lpj = await db.lPJ.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        periode: true,
-        tanggalMulai: true,
-        tanggalSelesai: true,
-        totalPemasukan: true,
-        totalPengeluaran: true,
-        saldo: true,
-        keterangan: true,
-        catatan: true,
-        status: true,
-        createdAt: true,
-        userId: true,
-        user: {
-          select: {
-            name: true,
-            email: true
+    
+    const lpj = await robustDbOperation(
+      () => db.lPJ.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          periode: true,
+          tanggalMulai: true,
+          tanggalSelesai: true,
+          totalPemasukan: true,
+          totalPengeluaran: true,
+          saldo: true,
+          keterangan: true,
+          catatan: true,
+          status: true,
+          createdAt: true,
+          userId: true,
+          user: {
+            select: {
+              name: true,
+              email: true
+            }
           }
         }
-      }
-    })
+      }),
+      { maxRetries: 2, timeoutMs: 8000 }
+    )
 
     if (!lpj) return NextResponse.json({ error: 'LPJ tidak ditemukan' }, { status: 404 })
 
     return NextResponse.json({ data: lpj })
   } catch (error: any) {
     console.error('Error fetching LPJ detail:', error)
-    return NextResponse.json({ error: 'Terjadi kesalahan server', details: error.message }, { status: 500 })
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message, 
+      code: dbError.code 
+    }, { status: 500 })
   }
 }
 
@@ -71,7 +80,11 @@ export async function PATCH(
     const body = await request.json()
     const { status, keterangan, periode, totalPemasukan, totalPengeluaran, catatan } = body
 
-    const existingLPJ = await db.lPJ.findUnique({ where: { id } })
+    const existingLPJ = await robustDbOperation(
+      () => db.lPJ.findUnique({ where: { id } }),
+      { maxRetries: 2, timeoutMs: 8000 }
+    )
+    
     if (!existingLPJ) return NextResponse.json({ error: 'LPJ tidak ditemukan' }, { status: 404 })
 
     // Permission check
@@ -96,15 +109,22 @@ export async function PATCH(
       updateData.saldo = tp - te
     }
 
-    const lpj = await db.lPJ.update({
-      where: { id },
-      data: updateData
-    })
+    const lpj = await robustDbOperation(
+      () => db.lPJ.update({
+        where: { id },
+        data: updateData
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
     return NextResponse.json({ message: 'LPJ berhasil diperbarui', data: lpj })
   } catch (error: any) {
     console.error('Error updating LPJ:', error)
-    return NextResponse.json({ error: 'Terjadi kesalahan server', details: error.message }, { status: 500 })
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message, 
+      code: dbError.code 
+    }, { status: 500 })
   }
 }
 
@@ -117,7 +137,11 @@ export async function DELETE(
 
   try {
     const { id } = await params
-    const lpj = await db.lPJ.findUnique({ where: { id } })
+    
+    const lpj = await robustDbOperation(
+      () => db.lPJ.findUnique({ where: { id } }),
+      { maxRetries: 2, timeoutMs: 8000 }
+    )
     
     if (!lpj) return NextResponse.json({ error: 'LPJ tidak ditemukan' }, { status: 404 })
 
@@ -129,10 +153,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'LPJ yang sudah disetujui tidak dapat dihapus' }, { status: 403 })
     }
 
-    await db.lPJ.delete({ where: { id } })
-    return NextResponse.json({ message: 'LPJ berhasil dihapus' })
+    await robustDbOperation(
+      () => db.lPJ.delete({ where: { id } }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
+    
+    return NextResponse.json({ message: 'LPJ berhasil dihapus' }, { status: 200 })
   } catch (error: any) {
     console.error('Error deleting LPJ:', error)
-    return NextResponse.json({ error: 'Terjadi kesalahan server', details: error.message }, { status: 500 })
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message, 
+      code: dbError.code 
+    }, { status: 500 })
   }
 }

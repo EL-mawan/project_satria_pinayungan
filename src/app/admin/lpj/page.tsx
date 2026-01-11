@@ -257,6 +257,8 @@ export default function LpjPage() {
   const handleDeleteLPJ = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
     
+    const toastId = toast.loading('Menghapus data LPJ...')
+    
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/keuangan/lpj/${id}`, {
@@ -264,17 +266,26 @@ export default function LpjPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        toast.success('LPJ berhasil dihapus')
+        toast.success('LPJ berhasil dihapus', { id: toastId })
         setShowDetailDialog(false)
-        fetchLPJ()
+        // Wait a bit before refreshing to ensure database consistency
+        await new Promise(resolve => setTimeout(resolve, 300))
+        await fetchLPJ()
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Gagal menghapus data')
+        toast.error(data.error || 'Gagal menghapus data', { 
+          id: toastId,
+          description: data.code ? `Kode: ${data.code}` : undefined
+        })
       }
     } catch (error) {
       console.error('Error deleting LPJ:', error)
-      toast.error('Terjadi kesalahan server')
+      toast.error('Koneksi terputus. Silakan coba lagi', { 
+        id: toastId,
+        description: 'Periksa koneksi internet Anda'
+      })
     }
   }
 

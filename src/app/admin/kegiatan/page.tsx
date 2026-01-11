@@ -41,6 +41,7 @@ export default function KegiatanPage() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const { toast } = useToast()
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -58,13 +59,18 @@ export default function KegiatanPage() {
   const [formData, setFormData] = useState(initialFormState)
 
   useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) setCurrentUser(JSON.parse(userData))
     fetchActivities()
   }, [])
 
   const fetchActivities = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/kegiatan')
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/kegiatan', {
+          headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (res.ok) {
         const data = await res.json()
         setActivities(data)
@@ -114,8 +120,10 @@ export default function KegiatanPage() {
     if (!confirm(`Apakah Anda yakin ingin menghapus kegiatan "${judul}"?`)) return
 
     try {
+      const token = localStorage.getItem('token')
       const res = await fetch(`/api/kegiatan/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
       if (res.ok) {
@@ -157,9 +165,13 @@ export default function KegiatanPage() {
       const url = editingId ? `/api/kegiatan/${editingId}` : '/api/kegiatan'
       const method = editingId ? 'PATCH' : 'POST'
 
+      const token = localStorage.getItem('token')
       const res = await fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       })
 
@@ -237,107 +249,109 @@ export default function KegiatanPage() {
         </div>
         
         {/* Create/Edit Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open)
-            if (!open) resetForm()
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl font-bold h-12 px-6 shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95 w-full md:w-auto">
-              <Plus className="mr-2 h-5 w-5" /> Tambah Kegiatan
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-[#5E17EB]">
-                  {editingId ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}
-              </DialogTitle>
-              <DialogDescription>
-                  {editingId ? 'Perbarui informasi kegiatan.' : 'Buat jadwal kegiatan atau acara baru untuk anggota.'}
-              </DialogDescription>
-            </DialogHeader>
+        {['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'].includes(currentUser?.role) && (
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open)
+                if (!open) resetForm()
+            }}>
+                <DialogTrigger asChild>
+                    <Button className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl font-bold h-12 px-6 shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95 w-full md:w-auto">
+                        <Plus className="mr-2 h-5 w-5" /> Tambah Kegiatan
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold text-[#5E17EB]">
+                        {editingId ? 'Edit Kegiatan' : 'Tambah Kegiatan Baru'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {editingId ? 'Perbarui informasi kegiatan.' : 'Buat jadwal kegiatan atau acara baru untuk anggota.'}
+                    </DialogDescription>
+                    </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="judul">Nama Kegiatan <span className="text-red-500">*</span></Label>
-                    <Input id="judul" name="judul" required 
-                    value={formData.judul} onChange={handleInputChange} 
-                    className="rounded-xl h-11" placeholder="Contoh: Latihan Rutin Minggu Pagi" />
-                </div>
+                    <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="judul">Nama Kegiatan <span className="text-red-500">*</span></Label>
+                            <Input id="judul" name="judul" required 
+                            value={formData.judul} onChange={handleInputChange} 
+                            className="rounded-xl h-11" placeholder="Contoh: Latihan Rutin Minggu Pagi" />
+                        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="jenis">Jenis Kegiatan</Label>
-                        <Select name="jenis" value={formData.jenis} onValueChange={(v) => handleSelectChange('jenis', v)}>
-                            <SelectTrigger className="rounded-xl h-11">
-                                <SelectValue placeholder="Pilih Jenis" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="LATIHAN">Latihan</SelectItem>
-                                <SelectItem value="PENGESAHAN">Pengesahan / Ujian</SelectItem>
-                                <SelectItem value="ACARA_ADAT">Acara Adat</SelectItem>
-                                <SelectItem value="LOMBA">Pertandingan / Lomba</SelectItem>
-                                <SelectItem value="SEMINAR">Seminar / Workshop</SelectItem>
-                                <SelectItem value="RAPAT">Rapat Pengurus</SelectItem>
-                                <SelectItem value="LAINNYA">Lainnya</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="jenis">Jenis Kegiatan</Label>
+                                <Select name="jenis" value={formData.jenis} onValueChange={(v) => handleSelectChange('jenis', v)}>
+                                    <SelectTrigger className="rounded-xl h-11">
+                                        <SelectValue placeholder="Pilih Jenis" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="LATIHAN">Latihan</SelectItem>
+                                        <SelectItem value="PENGESAHAN">Pengesahan / Ujian</SelectItem>
+                                        <SelectItem value="ACARA_ADAT">Acara Adat</SelectItem>
+                                        <SelectItem value="LOMBA">Pertandingan / Lomba</SelectItem>
+                                        <SelectItem value="SEMINAR">Seminar / Workshop</SelectItem>
+                                        <SelectItem value="RAPAT">Rapat Pengurus</SelectItem>
+                                        <SelectItem value="LAINNYA">Lainnya</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="status">Status</Label>
+                                <Select name="status" value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
+                                    <SelectTrigger className="rounded-xl h-11">
+                                        <SelectValue placeholder="Pilih Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="TERJADWAL">Terjadwal</SelectItem>
+                                        <SelectItem value="BERLANGSUNG">Sedang Berlangsung</SelectItem>
+                                        <SelectItem value="SELESAI">Selesai</SelectItem>
+                                        <SelectItem value="DIBATALKAN">Dibatalkan</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="tanggal">Tanggal <span className="text-red-500">*</span></Label>
+                                <Input id="tanggal" name="tanggal" type="date" required
+                                value={formData.tanggal} onChange={handleInputChange} 
+                                className="rounded-xl h-11" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="waktu">Waktu</Label>
+                                <Input id="waktu" name="waktu" type="time"
+                                value={formData.waktu} onChange={handleInputChange} 
+                                className="rounded-xl h-11" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="lokasi">Lokasi</Label>
+                            <Input id="lokasi" name="lokasi" 
+                            value={formData.lokasi} onChange={handleInputChange} 
+                            className="rounded-xl h-11" placeholder="Tempat kegiatan berlangsung" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="deskripsi">Deskripsi / Catatan</Label>
+                            <Textarea id="deskripsi" name="deskripsi" 
+                            value={formData.deskripsi} onChange={handleInputChange} 
+                            className="rounded-xl min-h-[100px]" placeholder="Informasi tambahan mengenai kegiatan ini..." />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select name="status" value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
-                            <SelectTrigger className="rounded-xl h-11">
-                                <SelectValue placeholder="Pilih Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="TERJADWAL">Terjadwal</SelectItem>
-                                <SelectItem value="BERLANGSUNG">Sedang Berlangsung</SelectItem>
-                                <SelectItem value="SELESAI">Selesai</SelectItem>
-                                <SelectItem value="DIBATALKAN">Dibatalkan</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="tanggal">Tanggal <span className="text-red-500">*</span></Label>
-                        <Input id="tanggal" name="tanggal" type="date" required
-                        value={formData.tanggal} onChange={handleInputChange} 
-                        className="rounded-xl h-11" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="waktu">Waktu</Label>
-                        <Input id="waktu" name="waktu" type="time"
-                        value={formData.waktu} onChange={handleInputChange} 
-                        className="rounded-xl h-11" />
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="lokasi">Lokasi</Label>
-                    <Input id="lokasi" name="lokasi" 
-                    value={formData.lokasi} onChange={handleInputChange} 
-                    className="rounded-xl h-11" placeholder="Tempat kegiatan berlangsung" />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="deskripsi">Deskripsi / Catatan</Label>
-                    <Textarea id="deskripsi" name="deskripsi" 
-                    value={formData.deskripsi} onChange={handleInputChange} 
-                    className="rounded-xl min-h-[100px]" placeholder="Informasi tambahan mengenai kegiatan ini..." />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-11 px-6">Batal</Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl h-11 px-6">
-                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : (editingId ? 'Simpan Perubahan' : 'Simpan Kegiatan')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-11 px-6">Batal</Button>
+                        <Button type="submit" disabled={isSubmitting} className="bg-[#5E17EB] hover:bg-[#4a11c0] text-white rounded-xl h-11 px-6">
+                        {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : (editingId ? 'Simpan Perubahan' : 'Simpan Kegiatan')}
+                        </Button>
+                    </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        )}
         
         {/* Detail View Dialog */}
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -482,12 +496,16 @@ export default function KegiatanPage() {
                           <Button variant="outline" size="sm" className="flex-1 text-slate-600 hover:text-[#5E17EB] border-slate-200" onClick={() => handleViewDetail(activity)}>
                               <Info className="h-4 w-4 mr-2" /> Detail
                           </Button>
-                          <Button variant="outline" size="icon" className="h-9 w-9 text-slate-600 hover:text-[#5E17EB] border-slate-200" onClick={() => handleEdit(activity)}>
-                              <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200" onClick={() => handleDelete(activity.id, activity.judul)}>
-                              <Trash className="h-4 w-4" />
-                          </Button>
+                          {['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'].includes(currentUser?.role) && (
+                              <>
+                                <Button variant="outline" size="icon" className="h-9 w-9 text-slate-600 hover:text-[#5E17EB] border-slate-200" onClick={() => handleEdit(activity)}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200" onClick={() => handleDelete(activity.id, activity.judul)}>
+                                    <Trash className="h-4 w-4" />
+                                </Button>
+                              </>
+                          )}
                     </CardFooter>
                 </Card>
             ))}

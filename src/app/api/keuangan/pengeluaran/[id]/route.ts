@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { robustDbOperation, formatDatabaseError } from '@/lib/db-utils'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
@@ -39,15 +40,19 @@ export async function DELETE(
   }
 
   try {
-    await db.pengeluaran.delete({
-      where: { id: params.id }
-    })
+    await robustDbOperation(
+      () => db.pengeluaran.delete({
+        where: { id: params.id }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
-    return NextResponse.json({ message: 'Data pengeluaran berhasil dihapus' })
-  } catch (error) {
+    return NextResponse.json({ message: 'Data pengeluaran berhasil dihapus' }, { status: 200 })
+  } catch (error: any) {
     console.error('Error deleting pengeluaran:', error)
+    const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: 'Gagal menghapus data' },
+      { error: dbError.message, code: dbError.code },
       { status: 500 }
     )
   }
@@ -72,29 +77,33 @@ export async function PATCH(
   try {
     const { jenis, tanggal, nominal, keterangan, bukti, kegiatanId, satuanHarga, qty, satuan } = await request.json()
 
-    const updated = await db.pengeluaran.update({
-      where: { id: params.id },
-      data: {
-        jenis,
-        tanggal: new Date(tanggal),
-        nominal: parseFloat(nominal),
-        satuanHarga: satuanHarga ? parseFloat(satuanHarga) : null,
-        qty: qty ? parseInt(qty) : null,
-        satuan,
-        keterangan,
-        bukti,
-        kegiatanId
-      }
-    })
+    const updated = await robustDbOperation(
+      () => db.pengeluaran.update({
+        where: { id: params.id },
+        data: {
+          jenis,
+          tanggal: new Date(tanggal),
+          nominal: parseFloat(nominal),
+          satuanHarga: satuanHarga ? parseFloat(satuanHarga) : null,
+          qty: qty ? parseInt(qty) : null,
+          satuan,
+          keterangan,
+          bukti,
+          kegiatanId
+        }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
     return NextResponse.json({ 
       message: 'Data pengeluaran berhasil diubah',
       data: updated
-    })
-  } catch (error) {
+    }, { status: 200 })
+  } catch (error: any) {
     console.error('Error updating pengeluaran:', error)
+    const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: 'Gagal mengubah data' },
+      { error: dbError.message, code: dbError.code },
       { status: 500 }
     )
   }

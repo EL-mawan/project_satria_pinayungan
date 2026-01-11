@@ -7,9 +7,21 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
-// Refresh trigger after role update
+// Graceful shutdown
+async function gracefulShutdown() {
+  await db.$disconnect()
+}
+
+process.on('beforeExit', gracefulShutdown)
+process.on('SIGINT', gracefulShutdown)
+process.on('SIGTERM', gracefulShutdown)

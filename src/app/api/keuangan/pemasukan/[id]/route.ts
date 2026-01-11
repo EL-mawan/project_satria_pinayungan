@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { robustDbOperation, formatDatabaseError } from '@/lib/db-utils'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
@@ -39,15 +40,19 @@ export async function DELETE(
   }
 
   try {
-    await db.pemasukan.delete({
-      where: { id: params.id }
-    })
+    await robustDbOperation(
+      () => db.pemasukan.delete({
+        where: { id: params.id }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
-    return NextResponse.json({ message: 'Data pemasukan berhasil dihapus' })
-  } catch (error) {
+    return NextResponse.json({ message: 'Data pemasukan berhasil dihapus' }, { status: 200 })
+  } catch (error: any) {
     console.error('Error deleting pemasukan:', error)
+    const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: 'Gagal menghapus data' },
+      { error: dbError.message, code: dbError.code },
       { status: 500 }
     )
   }
@@ -72,27 +77,31 @@ export async function PATCH(
   try {
     const { sumber, tanggal, nominal, keterangan, bukti, unitSumber, qty } = await request.json()
 
-    const updated = await db.pemasukan.update({
-      where: { id: params.id },
-      data: {
-        sumber,
-        tanggal: new Date(tanggal),
-        nominal: parseFloat(nominal),
-        unitSumber,
-        qty: qty ? parseInt(qty) : null,
-        keterangan,
-        bukti
-      }
-    })
+    const updated = await robustDbOperation(
+      () => db.pemasukan.update({
+        where: { id: params.id },
+        data: {
+          sumber,
+          tanggal: new Date(tanggal),
+          nominal: parseFloat(nominal),
+          unitSumber,
+          qty: qty ? parseInt(qty) : null,
+          keterangan,
+          bukti
+        }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
     return NextResponse.json({ 
       message: 'Data pemasukan berhasil diubah',
       data: updated
-    })
-  } catch (error) {
+    }, { status: 200 })
+  } catch (error: any) {
     console.error('Error updating pemasukan:', error)
+    const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: 'Gagal mengubah data' },
+      { error: dbError.message, code: dbError.code },
       { status: 500 }
     )
   }

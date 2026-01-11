@@ -1778,12 +1778,12 @@ export default function ProposalBuilderPage() {
           </div>
 
           {/* Action Bar for Approval/Rejection & Download */}
-          <div className="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
-             <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 w-full lg:w-auto">
                 <Button 
                     onClick={generatePDF} 
                     disabled={!isDownloadActive()}
-                    className={`flex-1 md:flex-none rounded-xl font-bold ${!isDownloadActive() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex-1 sm:flex-none rounded-xl font-bold ${!isDownloadActive() ? 'opacity-50 cursor-not-allowed' : ''}`}
                     variant={isDownloadActive() ? "default" : "secondary"}
                 >
                     <Download className="mr-2 h-4 w-4" /> Unduh PDF
@@ -1792,7 +1792,7 @@ export default function ProposalBuilderPage() {
                     <Button 
                         onClick={handleBulkGenerate} 
                         disabled={!isDownloadActive() || isBulkProcessing}
-                        className={`flex-1 md:flex-none rounded-xl font-bold bg-[#5E17EB] text-white hover:bg-[#4a11c0] ${!isDownloadActive() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex-1 sm:flex-none rounded-xl font-bold bg-[#5E17EB] text-white hover:bg-[#4a11c0] ${!isDownloadActive() ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isBulkProcessing ? (
                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
@@ -1806,11 +1806,11 @@ export default function ProposalBuilderPage() {
 
              {/* Admin / Ketua Actions */}
              {(currentUserRole === 'MASTER_ADMIN' || currentUserRole === 'KETUA') && proposalId && (
-                 <div className="flex items-center gap-2 w-full md:w-auto">
+                 <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2 w-full lg:w-auto">
                     {proposalStatus !== 'VALIDASI' && (
                         <Button 
                             onClick={() => handleStatusChange('VALIDASI')}
-                            className="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold"
+                            className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold"
                             disabled={isSaving}
                         >
                             <CheckCircle className="mr-2 h-4 w-4" /> Terima Proposal
@@ -1821,7 +1821,7 @@ export default function ProposalBuilderPage() {
                         <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
                             <Button 
                                 variant="destructive"
-                                className="flex-1 md:flex-none rounded-xl font-bold bg-rose-500 hover:bg-rose-600"
+                                className="flex-1 sm:flex-none rounded-xl font-bold bg-rose-500 hover:bg-rose-600"
                                 disabled={isSaving}
                                 onClick={() => setIsRejectDialogOpen(true)}
                             >
@@ -2258,7 +2258,7 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
           </div>  
           
           {pageNum === 1 && (
-              <p style={{ textIndent: '40px', marginBottom: '20px' }}>Berikut adalah estimasi perangkat sound system yang dibutuhkan dalam rangka menunjang kegiataan seni budaya di Padepokan:</p>
+              <p style={{ textIndent: '40px', marginBottom: '20px' }}>Berikut adalah estimasi yang dibutuhkan dalam rangka menunjang kegiatan seni budaya di Padepokan:</p>
           )}
           
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid black' }}>

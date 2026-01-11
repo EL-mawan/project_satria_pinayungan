@@ -119,12 +119,19 @@ export default function KegiatanPage() {
   const handleDelete = async (id: string, judul: string, onSuccess?: () => void) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus kegiatan "${judul}"?`)) return
 
+    const toastId = toast({
+      title: 'Menghapus kegiatan...',
+      description: 'Mohon tunggu sebentar',
+    }).id
+
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/kegiatan/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      const data = await res.json()
 
       if (res.ok) {
         toast({
@@ -132,11 +139,13 @@ export default function KegiatanPage() {
           description: 'Kegiatan berhasil dihapus'
         })
         onSuccess?.()
-        fetchActivities()
+        // Wait a bit before refreshing to ensure database consistency
+        await new Promise(resolve => setTimeout(resolve, 300))
+        await fetchActivities()
       } else {
         toast({
           title: 'Gagal',
-          description: 'Gagal menghapus kegiatan',
+          description: data.error || 'Gagal menghapus kegiatan',
           variant: 'destructive'
         })
       }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db as prisma } from '@/lib/db'
+import { robustDbOperation, formatDatabaseError } from '@/lib/db-utils'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
@@ -18,6 +19,7 @@ async function verifyAuth(request: NextRequest) {
 }
 
 // PATCH - Update Kegiatan
+// PATCH - Update Kegiatan
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -28,33 +30,44 @@ export async function PATCH(
   }
 
   try {
+    const { id } = await params
     const body = await req.json()
     const { judul, deskripsi, tanggal, lokasi, jenis, status } = body
 
-    const existingKegiatan = await prisma.kegiatan.findUnique({
-      where: { id: params.id }
-    })
+    const existingKegiatan = await robustDbOperation(
+      () => prisma.kegiatan.findUnique({
+        where: { id }
+      }),
+      { maxRetries: 2, timeoutMs: 5000 }
+    )
 
     if (!existingKegiatan) {
-      return NextResponse.json({ error: 'Kegiatan tidak ditemukan' }, { status: 404 })
+      return NextResponse.json({ error: 'Kegiatan tidak ditemukan', code: 'NOT_FOUND' }, { status: 404 })
     }
 
-    const updatedKegiatan = await prisma.kegiatan.update({
-      where: { id: params.id },
-      data: {
-        judul,
-        deskripsi,
-        tanggal: tanggal ? new Date(tanggal) : undefined,
-        lokasi,
-        jenis,
-        status
-      }
-    })
+    const updatedKegiatan = await robustDbOperation(
+      () => prisma.kegiatan.update({
+        where: { id },
+        data: {
+          judul,
+          deskripsi,
+          tanggal: tanggal ? new Date(tanggal) : undefined,
+          lokasi,
+          jenis,
+          status
+        }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
     return NextResponse.json(updatedKegiatan)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating kegiatan:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message, 
+      code: dbError.code 
+    }, { status: 500 })
   }
 }
 
@@ -69,21 +82,33 @@ export async function DELETE(
   }
 
   try {
-    const existingKegiatan = await prisma.kegiatan.findUnique({
-      where: { id: params.id }
-    })
+    const { id } = await params
+    
+    const existingKegiatan = await robustDbOperation(
+      () => prisma.kegiatan.findUnique({
+        where: { id }
+      }),
+      { maxRetries: 2, timeoutMs: 5000 }
+    )
 
     if (!existingKegiatan) {
-      return NextResponse.json({ error: 'Kegiatan tidak ditemukan' }, { status: 404 })
+      return NextResponse.json({ error: 'Kegiatan tidak ditemukan', code: 'NOT_FOUND' }, { status: 404 })
     }
 
-    await prisma.kegiatan.delete({
-      where: { id: params.id }
-    })
+    await robustDbOperation(
+      () => prisma.kegiatan.delete({
+        where: { id }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
-    return NextResponse.json({ message: 'Kegiatan berhasil dihapus' })
-  } catch (error) {
+    return NextResponse.json({ message: 'Kegiatan berhasil dihapus' }, { status: 200 })
+  } catch (error: any) {
     console.error('Error deleting kegiatan:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message, 
+      code: dbError.code 
+    }, { status: 500 })
   }
 }

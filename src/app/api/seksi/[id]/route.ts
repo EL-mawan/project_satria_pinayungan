@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { robustDbOperation, formatDatabaseError } from '@/lib/db-utils'
 import { verifyAuth } from '@/lib/auth'
 
 export async function GET(
@@ -54,23 +55,31 @@ export async function PATCH(
     const body = await request.json()
     const { nama, bidang, deskripsi, tugas, ketuaId } = body
 
-    const seksi = await db.seksi.update({
-      where: { id },
-      data: {
-        nama,
-        bidang,
-        deskripsi,
-        tugas,
-        ketuaId
-      }
-    })
+    const seksi = await robustDbOperation(
+      () => db.seksi.update({
+        where: { id },
+        data: {
+          nama,
+          bidang,
+          deskripsi,
+          tugas,
+          ketuaId
+        }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
 
     return NextResponse.json({ 
       message: 'Seksi berhasil diperbarui',
       data: seksi 
     })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Error updating seksi:', error)
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message,
+      code: dbError.code 
+    }, { status: 500 })
   }
 }
 
@@ -86,12 +95,29 @@ export async function DELETE(
 
     const { id } = await params
 
-    await db.seksi.delete({
-      where: { id }
-    })
+    const existingSeksi = await robustDbOperation(
+      () => db.seksi.findUnique({ where: { id } }),
+      { maxRetries: 2 }
+    )
 
-    return NextResponse.json({ message: 'Seksi berhasil dihapus' })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    if (!existingSeksi) {
+      return NextResponse.json({ error: 'Seksi tidak ditemukan' }, { status: 404 })
+    }
+
+    await robustDbOperation(
+      () => db.seksi.delete({
+        where: { id }
+      }),
+      { maxRetries: 3, timeoutMs: 10000 }
+    )
+
+    return NextResponse.json({ message: 'Seksi berhasil dihapus' }, { status: 200 })
+  } catch (error: any) {
+    console.error('Error deleting seksi:', error)
+    const dbError = formatDatabaseError(error)
+    return NextResponse.json({ 
+      error: dbError.message,
+      code: dbError.code 
+    }, { status: 500 })
   }
 }

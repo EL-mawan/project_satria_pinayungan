@@ -39,7 +39,8 @@ import {
   UserCircle,
   Briefcase,
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Package
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
@@ -176,6 +177,8 @@ export default function SeksiPage() {
   const handleDeleteSeksi = async (id: string) => {
     if (!confirm('Hapus seksi ini? Seluruh data terkait akan terpengaruh.')) return
 
+    const toastId = toast.loading('Menghapus data seksi...')
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/seksi/${id}`, {
@@ -183,14 +186,21 @@ export default function SeksiPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        toast.success('Seksi berhasil dihapus')
+        toast.success('Seksi berhasil dihapus', { id: toastId })
+        // Wait a bit before refreshing to ensure database consistency
+        await new Promise(resolve => setTimeout(resolve, 300))
         fetchSeksi()
       } else {
-        toast.error('Gagal menghapus seksi')
+        toast.error(data.error || 'Gagal menghapus seksi', { 
+          id: toastId,
+          description: data.code ? `Kode: ${data.code}` : undefined
+        })
       }
     } catch (error) {
-      toast.error('Kesalahan server')
+      toast.error('Kesalahan server', { id: toastId })
     }
   }
 

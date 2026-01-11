@@ -1060,7 +1060,7 @@ export default function UndanganBuilderPage() {
 
             {/* Penerima */}
             <Card className="shadow-xs border-purple-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
-              <CardHeader className="bg-linear-to-r from-purple-50 to-white border-b border-purple-100/50 pb-4 flex flex-row items-center justify-between space-y-0">
+              <CardHeader className="bg-linear-to-r from-purple-50 to-white border-b border-purple-100/50 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 sm:space-y-0">
                 <div className="flex items-center gap-2 text-purple-800">
                   <div className="p-2 bg-purple-100 rounded-lg">
                     <Users className="w-5 h-5" />
@@ -1070,7 +1070,7 @@ export default function UndanganBuilderPage() {
                     <p className="text-xs text-purple-600 font-normal mt-0.5">Tujuan surat undangan</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <Input
                     type="file"
                     accept=".xlsx, .xls"

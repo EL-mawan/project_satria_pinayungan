@@ -266,11 +266,14 @@ export default function LpjPage() {
 
       if (response.ok) {
         toast.success('LPJ berhasil dihapus')
+        setShowDetailDialog(false)
         fetchLPJ()
       } else {
-        toast.error('Gagal menghapus data')
+        const data = await response.json()
+        toast.error(data.error || 'Gagal menghapus data')
       }
     } catch (error) {
+      console.error('Error deleting LPJ:', error)
       toast.error('Terjadi kesalahan server')
     }
   }
@@ -291,7 +294,10 @@ export default function LpjPage() {
   const pdfRef = useRef<HTMLDivElement>(null)
 
   const handleDownloadPDF = async (lpj: LPJ) => {
-    if (!pdfRef.current) return
+    if (!pdfRef.current) {
+      toast.error('Komponen PDF belum siap')
+      return
+    }
     
     setIsGeneratingPdf(true)
     const toastId = toast.loading('Menyiapkan data laporan...')
@@ -300,18 +306,22 @@ export default function LpjPage() {
       const token = localStorage.getItem('token')
       
       // 1. Fetch ALL pemasukan and pengeluaran to filter
+      toast.loading('Mengambil data keuangan...', { id: toastId })
       const [pemRes, pengRes] = await Promise.all([
-        fetch('/api/keuangan/pemasukan', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/keuangan/pengeluaran', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/keuangan/pemasukan?limit=1000', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/keuangan/pengeluaran?limit=1000', { headers: { 'Authorization': `Bearer ${token}` } })
       ])
 
-      if (!pemRes.ok || !pengRes.ok) throw new Error('Gagal mengambil data keuangan')
+      if (!pemRes.ok || !pengRes.ok) {
+        throw new Error('Gagal mengambil data keuangan')
+      }
 
       const pemData = await pemRes.json()
       const pengData = await pengRes.json()
 
       // 2. Filter data based on LPJ dates
       const startDate = new Date(lpj.tanggalMulai)
+      startDate.setHours(0, 0, 0, 0)
       const endDate = new Date(lpj.tanggalSelesai)
       endDate.setHours(23, 59, 59, 999)
 
@@ -342,9 +352,14 @@ export default function LpjPage() {
       })
 
       // 4. Wait for render
-      await new Promise(resolve => setTimeout(resolve, 600))
+      toast.loading('Membuat dokumen PDF...', { id: toastId })
+      await new Promise(resolve => setTimeout(resolve, 800))
 
       const element = pdfRef.current
+      if (!element) {
+        throw new Error('Element PDF tidak ditemukan')
+      }
+
       const canvas = await html2canvas(element, {
         scale: 2, 
         logging: false,
@@ -388,7 +403,8 @@ export default function LpjPage() {
         heightLeft -= pageHeight
       }
 
-      pdf.save(`Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}.pdf`)
+      const fileName = `Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`
+      pdf.save(fileName)
       
       toast.success('Laporan berhasil diunduh', { id: toastId })
     } catch (error) {

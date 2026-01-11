@@ -885,24 +885,24 @@ export default function UndanganBuilderPage() {
     <div className="min-h-screen bg-slate-50 p-2.5 sm:p-6">
       <div className="max-w-screen-2xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between px-4 sm:px-0 pt-4 sm:pt-0">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/admin/surat')}
-              className="gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {undanganId ? 'Edit Surat Undangan' : 'Buat Surat Undangan Baru'}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Buat surat undangan resmi untuk acara Padepokan
-              </p>
-            </div>
+        <div className="mb-6 flex flex-col items-start gap-4 px-4 sm:px-0 pt-4 sm:pt-0">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/admin/surat')}
+            className="gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Kembali
+          </Button>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+             <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {undanganId ? 'Edit Surat Undangan' : 'Buat Surat Undangan Baru'}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Buat surat undangan resmi untuk acara Padepokan
+                </p>
+             </div>
           </div>
         </div>
 
@@ -1414,7 +1414,7 @@ export default function UndanganBuilderPage() {
                   
                   {/* Action Bar */}
                   <div className="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
-                     <div className="flex items-center gap-2 w-full md:w-auto">
+                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
                         <Button 
                             onClick={showEnvelope ? generateEnvelopePDF : generatePDF} 
                             disabled={!isDownloadActive()}

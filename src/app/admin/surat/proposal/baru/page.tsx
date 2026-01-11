@@ -1778,8 +1778,8 @@ export default function ProposalBuilderPage() {
           </div>
 
           {/* Action Bar for Approval/Rejection & Download */}
-          <div className="mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
-             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 w-full lg:w-auto">
+           <div className="mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-2 w-full lg:w-auto">
                 <Button 
                     onClick={generatePDF} 
                     disabled={!isDownloadActive()}

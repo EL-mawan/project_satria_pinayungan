@@ -882,10 +882,10 @@ export default function UndanganBuilderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-0 sm:p-6">
       <div className="max-w-screen-2xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between px-4 sm:px-0 pt-4 sm:pt-0">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -911,7 +911,7 @@ export default function UndanganBuilderPage() {
           {!isViewMode && (
           <div className="flex-1 space-y-6 animate-in fade-in duration-700">
             {/* Kop Surat */}
-            <Card className="shadow-xs border-emerald-100/50 hover:shadow-md transition-shadow duration-300">
+            <Card className="shadow-xs border-emerald-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
               <CardHeader className="bg-linear-to-r from-emerald-50 to-white border-b border-emerald-100/50 pb-4">
                 <div className="flex items-center gap-2 text-emerald-800">
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -997,7 +997,7 @@ export default function UndanganBuilderPage() {
             </Card>
 
             {/* Informasi Surat */}
-            <Card className="shadow-xs border-blue-100/50 hover:shadow-md transition-shadow duration-300">
+            <Card className="shadow-xs border-blue-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
               <CardHeader className="bg-linear-to-r from-blue-50 to-white border-b border-blue-100/50 pb-4">
                 <div className="flex items-center gap-2 text-blue-800">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -1059,7 +1059,7 @@ export default function UndanganBuilderPage() {
             </Card>
 
             {/* Penerima */}
-            <Card className="shadow-xs border-purple-100/50 hover:shadow-md transition-shadow duration-300">
+            <Card className="shadow-xs border-purple-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
               <CardHeader className="bg-linear-to-r from-purple-50 to-white border-b border-purple-100/50 pb-4 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-2 text-purple-800">
                   <div className="p-2 bg-purple-100 rounded-lg">
@@ -1182,7 +1182,7 @@ export default function UndanganBuilderPage() {
             </Card>
 
             {/* Isi Undangan */}
-            <Card className="shadow-xs border-orange-100/50 hover:shadow-md transition-shadow duration-300">
+            <Card className="shadow-xs border-orange-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
               <CardHeader className="bg-linear-to-r from-orange-50 to-white border-b border-orange-100/50 pb-4">
                 <div className="flex items-center gap-2 text-orange-800">
                   <div className="p-2 bg-orange-100 rounded-lg">
@@ -1292,7 +1292,7 @@ export default function UndanganBuilderPage() {
             </Card>
 
             {/* Penandatangan */}
-            <Card className="shadow-xs border-teal-100/50 hover:shadow-md transition-shadow duration-300">
+            <Card className="shadow-xs border-teal-100/50 hover:shadow-md transition-shadow duration-300 rounded-none sm:rounded-xl border-x-0 sm:border">
               <CardHeader className="bg-linear-to-r from-teal-50 to-white border-b border-teal-100/50 pb-4">
                 <div className="flex items-center gap-2 text-teal-800">
                   <div className="p-2 bg-teal-100 rounded-lg">

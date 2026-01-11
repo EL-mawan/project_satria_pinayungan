@@ -908,7 +908,7 @@ export default function ProposalBuilderPage() {
   }
 
   return (
-    <div className={isViewMode ? "" : "flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 pb-20 px-4 md:px-6 lg:px-0"}>
+    <div className={isViewMode ? "" : "flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 pb-20 px-0 md:px-6 lg:px-0"}>
       {/* Form Section */}
       {!isViewMode && (
       <div className="flex-1 space-y-4 md:space-y-6 animate-in fade-in duration-700">
@@ -940,8 +940,8 @@ export default function ProposalBuilderPage() {
             </TabsTrigger>
           </TabsList>
 
-          <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-3xl md:rounded-[2.5rem] overflow-hidden bg-white">
-            <CardContent className="p-5 md:p-8 lg:p-10">
+          <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-none sm:rounded-3xl md:rounded-[2.5rem] overflow-hidden bg-white">
+            <CardContent className="p-4 sm:p-5 md:p-8 lg:p-10">
               <TabsContent value="umum" className="space-y-8 mt-0">
                 <div className="space-y-2">
                   <Label className="font-bold text-slate-700 ml-1">Nama Kop Surat</Label>

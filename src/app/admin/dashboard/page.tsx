@@ -193,7 +193,7 @@ export default function DashboardPage() {
           const Icon = stat.icon
           return (
             <Card key={index} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl overflow-hidden group hover:shadow-xl transition-all duration-300 bg-white">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between">
                   <div className={`p-3 rounded-2xl ${stat.bgColor} ${stat.color} transition-transform group-hover:scale-110 duration-300`}>
                     <Icon className="h-6 w-6" />
@@ -226,9 +226,9 @@ export default function DashboardPage() {
 
           <div className="grid gap-4">
             {stats.recentActivities.map((activity) => (
-              <Card key={activity.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-4xl hover:shadow-lg transition-all duration-300 bg-white group cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <Card key={activity.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl sm:rounded-4xl hover:shadow-lg transition-all duration-300 bg-white group cursor-pointer">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                     {/* Activity Icon/Logo */}
                     <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 group-hover:border-[#5E17EB]/20 transition-colors">
                       {activity.type === 'kegiatan' ? (
@@ -275,7 +275,7 @@ export default function DashboardPage() {
           {/* Urgent Section */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">Perlu Perhatian</h2>
-            <Card className="border-none bg-[#5E17EB] rounded-3xl p-6 text-white shadow-xl shadow-[#5E17EB]/30 relative overflow-hidden group">
+            <Card className="border-none bg-[#5E17EB] rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-[#5E17EB]/30 relative overflow-hidden group">
               <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-colors"></div>
               <div className="relative z-10">
                 <AlertCircle className="h-10 w-10 text-white/80 mb-4" />
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                 { label: 'Laporan', icon: TrendingUp, color: 'bg-rose-50 text-rose-600', roles: ['MASTER_ADMIN', 'KETUA', 'BENDAHARA'] },
               ].filter(action => !user || action.roles.includes(user.role))
                .map((action, i) => (
-                <button key={i} className="flex flex-col items-center justify-center p-6 bg-white rounded-4xl hover:ring-2 hover:ring-[#5E17EB]/10 hover:shadow-md transition-all group border border-slate-100">
+                <button key={i} className="flex flex-col items-center justify-center p-4 sm:p-6 bg-white rounded-3xl sm:rounded-4xl hover:ring-2 hover:ring-[#5E17EB]/10 hover:shadow-md transition-all group border border-slate-100">
                   <div className={`p-3 rounded-2xl ${action.color} mb-3 group-hover:scale-110 transition-transform`}>
                     <action.icon className="h-6 w-6" />
                   </div>

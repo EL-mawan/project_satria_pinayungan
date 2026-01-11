@@ -51,7 +51,7 @@ export default function UserManagementPage() {
     name: '',
     email: '',
     password: '',
-    role: 'ANGGOTA',
+    role: 'SEKRETARIS',
     phone: '',
     address: ''
   }
@@ -75,7 +75,12 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/users')
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       if (res.ok) {
         const data = await res.json()
         setUsers(data)
@@ -123,8 +128,12 @@ export default function UserManagementPage() {
     if (!confirm(`Apakah Anda yakin ingin menghapus pengguna ${name}? Semua data terkait akan ikut terhapus.`)) return
 
     try {
+      const token = localStorage.getItem('token')
       const res = await fetch(`/api/admin/users/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
 
       if (res.ok) {
@@ -163,9 +172,13 @@ export default function UserManagementPage() {
           delete (payload as any).password
       }
 
+      const token = localStorage.getItem('token')
       const res = await fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       })
 
@@ -267,11 +280,9 @@ export default function UserManagementPage() {
                             <SelectValue placeholder="Pilih Peran" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-slate-100">
-                            <SelectItem value="MASTER_ADMIN">Master Admin</SelectItem>
                             <SelectItem value="KETUA">Ketua</SelectItem>
                             <SelectItem value="SEKRETARIS">Sekretaris</SelectItem>
                             <SelectItem value="BENDAHARA">Bendahara</SelectItem>
-                            <SelectItem value="ANGGOTA">Anggota</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -307,7 +318,7 @@ export default function UserManagementPage() {
       <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white/80 backdrop-blur-xl">
         <CardHeader className="bg-white border-b border-slate-50 p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 bg-gradient-to-br from-[#4338CA] to-[#3730A3] rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+            <div className="h-14 w-14 bg-linear-to-br from-[#4338CA] to-[#3730A3] rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
                <Shield className="h-7 w-7 text-white" />
             </div>
             <div>
@@ -428,8 +439,8 @@ export default function UserManagementPage() {
                           </div>
                       </TableCell>
                       <TableCell className="pr-10 text-right">
-                          {/* Guru Besar (MASTER_ADMIN) protection: Only MASTER_ADMIN can manage other MASTER_ADMINs */}
-                          {(user.role !== 'MASTER_ADMIN' || currentUser?.role === 'MASTER_ADMIN') ? (
+                          {/* Protection: Only MASTER_ADMIN can manage MASTER_ADMIN and KETUA accounts */}
+                          {((user.role !== 'MASTER_ADMIN' && user.role !== 'KETUA') || currentUser?.role === 'MASTER_ADMIN') ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl hover:bg-white hover:shadow-xl transition-all">

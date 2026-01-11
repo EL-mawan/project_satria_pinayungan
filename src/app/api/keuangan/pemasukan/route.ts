@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const limit = parseInt(searchParams.get('limit') || '1000')
     const search = searchParams.get('search') || ''
     const startDate = searchParams.get('startDate') || ''
     const endDate = searchParams.get('endDate') || ''
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     const [pemasukan, total] = await Promise.all([
       db.pemasukan.findMany({
         where,
-        orderBy: { tanggal: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),

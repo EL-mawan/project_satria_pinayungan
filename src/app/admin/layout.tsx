@@ -9,7 +9,6 @@ import {
   Users, 
   Calendar, 
   Mail, 
-  DollarSign, 
   FileText, 
   Settings, 
   LogOut,
@@ -80,7 +79,10 @@ export default function AdminLayout({
 
   const fetchNotifications = async () => {
     try {
-        const res = await fetch('/api/admin/notifications')
+        const token = localStorage.getItem('token')
+        const res = await fetch('/api/admin/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
         if (res.ok) {
             const data = await res.json()
             if (data.counts) setCounts(data.counts)
@@ -132,6 +134,10 @@ export default function AdminLayout({
     }
   }
 
+const IDR = ({ className }: { className?: string }) => (
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+)
+
   const menuItems = [
     {
       title: 'Dashboard',
@@ -159,9 +165,9 @@ export default function AdminLayout({
     },
     {
       title: 'Keuangan',
-      icon: DollarSign,
+      icon: IDR,
       href: '/admin/keuangan',
-      roles: ['MASTER_ADMIN', 'KETUA', 'BENDAHARA']
+      roles: ['MASTER_ADMIN', 'BENDAHARA']
     },
     {
       title: 'Pesan Masuk',

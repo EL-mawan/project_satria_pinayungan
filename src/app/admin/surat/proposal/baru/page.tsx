@@ -20,7 +20,6 @@ import {
   FileText, 
   Users, 
   ListTodo, 
-  DollarSign,
   Printer,
   Edit,
   Sparkles,
@@ -32,6 +31,10 @@ import {
   RotateCcw,
   Calendar
 } from 'lucide-react'
+
+const IDR = ({ className }: { className?: string }) => (
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+)
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import * as XLSX from 'xlsx'
@@ -933,7 +936,7 @@ export default function ProposalBuilderPage() {
               <Users className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">Struktur</span>
             </TabsTrigger>
             <TabsTrigger value="rab" className="rounded-2xl font-bold data-[state=active]:bg-white data-[state=active]:text-[#5E17EB] data-[state=active]:shadow-sm transition-all">
-              <DollarSign className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">RAB</span>
+              <IDR className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">RAB</span>
             </TabsTrigger>
             <TabsTrigger value="ttd" className="rounded-2xl font-bold data-[state=active]:bg-white data-[state=active]:text-[#5E17EB] data-[state=active]:shadow-sm transition-all">
               <FileCheck className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">Penutup</span>
@@ -1490,7 +1493,7 @@ export default function ProposalBuilderPage() {
                             <div className="text-right">
                                 <span className="text-xs text-slate-400 block mb-1">Subtotal</span>
                                 <span className="text-lg font-extrabold text-slate-900">
-                                    Rp {(item.totalHarga).toLocaleString('id-ID')}
+                                    IDR {(item.totalHarga).toLocaleString('id-ID')}
                                 </span>
                             </div>
                           </td>
@@ -1509,7 +1512,7 @@ export default function ProposalBuilderPage() {
                         </td>
                         <td colSpan={2} className="px-6 py-6">
                             <span className="text-2xl font-black text-[#5E17EB]">
-                                Rp {calculateTotalRab().toLocaleString('id-ID')}
+                                IDR {calculateTotalRab().toLocaleString('id-ID')}
                             </span>
                         </td>
                       </tr>
@@ -2279,8 +2282,8 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
                   <td style={{ border: '1px solid black', padding: '8px 5px', fontWeight: 'bold' }}>{item.nama}</td>
                   <td style={{ border: '1px solid black', padding: '8px 5px', fontSize: '11pt' }}>{item.spesifikasi}</td>
                   <td style={{ border: '1px solid black', padding: '8px 5px', textAlign: 'center' }}>{item.jumlah} {item.satuan}</td>
-                  <td style={{ border: '1px solid black', padding: '8px 5px', textAlign: 'right' }}>Rp {item.hargaSatuan.toLocaleString('id-ID')}</td>
-                  <td style={{ border: '1px solid black', padding: '8px 5px', textAlign: 'right', fontWeight: 'bold' }}>Rp {item.totalHarga.toLocaleString('id-ID')}</td>
+                  <td style={{ border: '1px solid black', padding: '8px 5px', textAlign: 'right' }}>IDR {item.hargaSatuan.toLocaleString('id-ID')}</td>
+                  <td style={{ border: '1px solid black', padding: '8px 5px', textAlign: 'right', fontWeight: 'bold' }}>IDR {item.totalHarga.toLocaleString('id-ID')}</td>
                 </tr>
               ))}
               
@@ -2300,7 +2303,7 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
                 <tfoot>
                   <tr style={{ fontWeight: 'bold', backgroundColor: '#f2f2f2' }}>
                     <td colSpan={5} style={{ border: '1px solid black', padding: '12px 15px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '2px' }}>Total Biaya</td>
-                    <td style={{ border: '1px solid black', padding: '12px 5px', textAlign: 'right', fontSize: '13pt' }}>Rp {total.toLocaleString('id-ID')}</td>
+                    <td style={{ border: '1px solid black', padding: '12px 5px', textAlign: 'right', fontSize: '13pt' }}>IDR {total.toLocaleString('id-ID')}</td>
                   </tr>
                 </tfoot>
             )}

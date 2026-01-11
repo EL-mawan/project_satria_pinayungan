@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,6 @@ import {
   Search, 
   TrendingUp, 
   TrendingDown, 
-  DollarSign,
   Calendar,
   FileText,
   Download,
@@ -38,6 +38,10 @@ import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import LaporanPDF from './components/LaporanPDF'
+
+const IDR = ({ className }: { className?: string }) => (
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+)
 
 interface Pemasukan {
   id: string
@@ -82,8 +86,13 @@ interface LPJ {
   }
 }
 
-export default function KeuanganPage() {
-  const [activeTab, setActiveTab] = useState('pemasukan')
+function KeuanganContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  
+  const [user, setUser] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState(tabParam || 'pemasukan')
   const [pemasukanList, setPemasukanList] = useState<Pemasukan[]>([])
   const [pengeluaranList, setPengeluaranList] = useState<Pengeluaran[]>([])
   const [lpjList, setLpjList] = useState<LPJ[]>([])
@@ -96,6 +105,21 @@ export default function KeuanganPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+        if (parsedUser.role === 'KETUA') {
+          router.push('/admin/lpj')
+        }
+      } catch (e) {
+        console.error('Error parsing user data:', e)
+      }
+    }
+  }, [router])
   
   const [formData, setFormData] = useState({
     sumber: '',
@@ -140,9 +164,7 @@ export default function KeuanganPage() {
   })
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    return 'IDR ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
   }
@@ -312,7 +334,11 @@ export default function KeuanganPage() {
           kegiatanId: '',
           bukti: ''
         })
-        activeTab === 'pemasukan' ? fetchPemasukan() : fetchPengeluaran()
+        if (activeTab === 'pemasukan') {
+          fetchPemasukan()
+        } else {
+          fetchPengeluaran()
+        }
       } else {
         const data = await response.json()
         toast.error(data.error || 'Gagal menyimpan data')
@@ -392,7 +418,11 @@ export default function KeuanganPage() {
 
       if (response.ok) {
         toast.success('Data berhasil dihapus')
-        activeTab === 'pemasukan' ? fetchPemasukan() : fetchPengeluaran()
+        if (activeTab === 'pemasukan') {
+          fetchPemasukan()
+        } else {
+          fetchPengeluaran()
+        }
       } else {
         toast.error('Gagal menghapus data')
       }
@@ -463,11 +493,11 @@ export default function KeuanganPage() {
         logging: false,
         useCORS: true,
         backgroundColor: '#ffffff',
+        windowWidth: 794, // Approx 210mm at 96dpi
         onclone: (clonedDoc) => {
            const styles = clonedDoc.getElementsByTagName('style')
            const links = clonedDoc.getElementsByTagName('link')
            
-           // Convert to arrays and remove all stylesheets
            Array.from(styles).forEach(style => style.remove())
            Array.from(links).forEach(link => {
              if (link.rel === 'stylesheet') {
@@ -475,12 +505,10 @@ export default function KeuanganPage() {
              }
            })
            
-           // Ensure the captured element is visible in the clone
            const clonedElement = clonedDoc.getElementById('laporan-pdf')
            if (clonedElement) {
              clonedElement.style.display = 'block'
              clonedElement.style.visibility = 'visible'
-             // Force override background to ensure no inheritance issues
              clonedElement.style.backgroundColor = '#ffffff'
              clonedElement.style.color = '#000000'
            }
@@ -495,10 +523,24 @@ export default function KeuanganPage() {
       })
       
       const imgWidth = 210
+      const pageHeight = 297
       const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
-      pdf.save(`Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}.pdf`)
+      let heightLeft = imgHeight
+      let position = 0
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      // Subsequent pages if any
+      while (heightLeft > 0.5) { // Small buffer for rounding
+        pdf.addPage()
+        position = heightLeft - imgHeight
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      pdf.save(`Laporan_Keuangan_${new Date().getTime()}.pdf`)
       
       toast.success('Laporan berhasil diunduh', { id: toastId })
     } catch (error) {
@@ -547,7 +589,7 @@ export default function KeuanganPage() {
         {[
           { title: 'Total Pemasukan', value: summary.totalPemasukan, icon: ArrowUpRight, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
           { title: 'Total Pengeluaran', value: summary.totalPengeluaran, icon: ArrowDownRight, color: 'text-rose-600', bgColor: 'bg-rose-50' },
-          { title: 'Saldo Terkini', value: summary.saldo, icon: DollarSign, color: 'text-[#5E17EB]', bgColor: 'bg-[#5E17EB]/5' }
+          { title: 'Saldo Terkini', value: summary.saldo, icon: IDR, color: 'text-[#5E17EB]', bgColor: 'bg-[#5E17EB]/5' }
         ].map((item, idx) => (
           <Card key={idx} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl group hover:shadow-xl transition-all duration-300 bg-white overflow-hidden">
             <CardContent className="p-6">
@@ -705,84 +747,6 @@ export default function KeuanganPage() {
                 <TrendingDown className="h-16 w-16 text-slate-200 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-900">Belum ada pengeluaran</h3>
                 <p className="text-slate-500">Mulai catat pengeluaran operasional.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="lpj" className="mt-0">
-          <div className="grid gap-4">
-            {lpjList.map((item) => (
-              <Card key={item.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl hover:shadow-lg transition-all duration-300 bg-white group overflow-hidden border-l-4 border-l-[#5E17EB]">
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h4 className="font-extrabold text-lg text-slate-900">{item.periode}</h4>
-                        <Badge className={`rounded-full px-3 font-bold border-none transition-all ${getStatusBadge(item.status)}`}>
-                          {item.status}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-4">
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pemasukan</p>
-                          <p className="font-extrabold text-emerald-600">{formatCurrency(item.totalPemasukan)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pengeluaran</p>
-                          <p className="font-extrabold text-rose-600">{formatCurrency(item.totalPengeluaran)}</p>
-                        </div>
-                        <div className="col-span-2 md:col-span-1">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sisa Saldo</p>
-                          <p className="font-extrabold text-[#5E17EB]">{formatCurrency(item.saldo)}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between lg:justify-end gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-9 w-9 border-2 border-slate-100">
-                          <AvatarFallback className="bg-[#5E17EB]/10 text-[#5E17EB] text-xs font-bold">
-                            {item.user.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="hidden sm:block text-left">
-                          <p className="text-xs font-bold text-slate-900 leading-none mb-1">{item.user.name}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">Pembuat Laporan</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button 
-                          variant="outline"
-                          className="rounded-xl h-10 font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
-                          onClick={() => handleDownloadPDF(item)}
-                          disabled={isGeneratingPdf}
-                        >
-                          {isGeneratingPdf ? (
-                             <span className="flex items-center gap-2">
-                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent"></div>
-                               <span>Memproses...</span>
-                             </span>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download PDF LPJ
-                            </>
-                          )}
-                        </Button>
-                        <Button className="rounded-xl bg-slate-900 text-white font-bold h-10 px-4">
-                          Detail
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {lpjList.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-slate-100">
-                <FileText className="h-16 w-16 text-slate-200 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-slate-900">Belum ada LPJ</h3>
-                <p className="text-slate-500">Buat LPJ untuk merekapitulasi keuangan periode tertentu.</p>
               </div>
             )}
           </div>
@@ -946,86 +910,14 @@ export default function KeuanganPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* LPJ Dialog */}
-      <Dialog open={showLPJDialog} onOpenChange={setShowLPJDialog}>
-        <DialogContent className="max-w-md rounded-4xl p-0 overflow-hidden border-none shadow-2xl">
-          <div className="p-8 bg-[#5E17EB] text-white">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-extrabold flex items-center">
-                <FileText className="mr-3 h-6 w-6" />
-                Buat LPJ Baru
-              </DialogTitle>
-              <DialogDescription className="text-white/80 font-medium">
-                Rekapitulasi keuangan untuk periode waktu tertentu.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-          
-          <div className="p-8 space-y-5 bg-white">
-            <div className="space-y-2">
-              <Label className="font-bold text-slate-700 ml-1">Nama Periode</Label>
-              <Input
-                placeholder="Contoh: Januari 2024"
-                className="h-12 rounded-2xl border-slate-200"
-                value={lpjFormData.periode}
-                onChange={(e) => setLpjFormData({ ...lpjFormData, periode: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="font-bold text-slate-700 ml-1">Mulai</Label>
-                <Input
-                  type="date"
-                  className="h-12 rounded-2xl border-slate-200"
-                  value={lpjFormData.tanggalMulai}
-                  onChange={(e) => setLpjFormData({ ...lpjFormData, tanggalMulai: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold text-slate-700 ml-1">Selesai</Label>
-                <Input
-                  type="date"
-                  className="h-12 rounded-2xl border-slate-200"
-                  value={lpjFormData.tanggalSelesai}
-                  onChange={(e) => setLpjFormData({ ...lpjFormData, tanggalSelesai: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-bold text-slate-700 ml-1">Keterangan Opsional</Label>
-              <Textarea
-                placeholder="Catatan tambahan untuk laporan ini..."
-                className="rounded-2xl border-slate-200"
-                value={lpjFormData.keterangan}
-                onChange={(e) => setLpjFormData({ ...lpjFormData, keterangan: e.target.value })}
-              />
-            </div>
-
-            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start space-x-3">
-               <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-               <p className="text-xs text-blue-700 font-medium leading-relaxed">
-                 Sistem akan menjumlahkan secara otomatis seluruh pemasukan dan pengeluaran pada rentang tanggal yang dipilih.
-               </p>
-            </div>
-
-            <div className="pt-4 flex gap-3">
-              <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setShowLPJDialog(false)}>
-                Batal
-              </Button>
-              <Button 
-                className="flex-1 h-12 rounded-2xl font-extrabold bg-[#5E17EB] hover:bg-[#4a11c0] shadow-lg shadow-[#5E17EB]/20"
-                onClick={handleCreateLPJ}
-                disabled={createLoading}
-              >
-                {createLoading ? 'Memproses...' : 'Generate Laporan'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
+  )
+}
+
+export default function KeuanganPage() {
+  return (
+    <Suspense fallback={null}>
+      <KeuanganContent />
+    </Suspense>
   )
 }

@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { 
-  Users, 
-  Calendar, 
-  DollarSign, 
-  FileText, 
+import {
+  Users,
+  Calendar,
+  FileText,
   TrendingUp,
   TrendingDown,
   AlertCircle,
@@ -24,6 +23,10 @@ import {
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
+const IDR = ({ className }: { className?: string }) => (
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+)
+
 interface DashboardStats {
   totalAnggota: number
   anggotaAktif: number
@@ -37,6 +40,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState<DashboardStats>({
     totalAnggota: 0,
     anggotaAktif: 0,
@@ -51,6 +55,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Get user from localStorage
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch (e) {
+        console.error('Error parsing user data:', e)
+      }
+    }
+
     // Simulasi loading data
     const loadDashboardData = async () => {
       try {
@@ -80,9 +94,7 @@ export default function DashboardPage() {
   }, [])
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    return 'IDR ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
   }
@@ -95,7 +107,8 @@ export default function DashboardPage() {
       icon: Users,
       color: 'text-[#5E17EB]',
       bgColor: 'bg-[#5E17EB]/10',
-      trend: { value: 12, isPositive: true }
+      trend: { value: 12, isPositive: true },
+      roles: ['MASTER_ADMIN', 'KETUA', 'SEKRETARIS', 'BENDAHARA']
     },
     {
       title: 'Kegiatan Aktif',
@@ -104,7 +117,8 @@ export default function DashboardPage() {
       icon: Calendar,
       color: 'text-amber-600',
       bgColor: 'bg-amber-100',
-      trend: { value: 8, isPositive: true }
+      trend: { value: 8, isPositive: true },
+      roles: ['MASTER_ADMIN', 'KETUA', 'SEKRETARIS', 'BENDAHARA']
     },
     {
       title: 'Pemasukan Kas',
@@ -113,7 +127,8 @@ export default function DashboardPage() {
       icon: TrendingUp,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100',
-      trend: { value: 15, isPositive: true }
+      trend: { value: 15, isPositive: true },
+      roles: ['MASTER_ADMIN', 'BENDAHARA']
     },
     {
       title: 'Pengeluaran Kas',
@@ -122,9 +137,14 @@ export default function DashboardPage() {
       icon: TrendingDown,
       color: 'text-rose-600',
       bgColor: 'bg-rose-100',
-      trend: { value: 5, isPositive: false }
+      trend: { value: 5, isPositive: false },
+      roles: ['MASTER_ADMIN', 'BENDAHARA']
     }
   ]
+
+  const filteredStatCards = statCards.filter(card => 
+    !user || (card.roles && card.roles.includes(user.role))
+  )
 
 
 
@@ -159,17 +179,17 @@ export default function DashboardPage() {
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Halo, Admin 👋</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Halo, {user?.name || 'Admin'} 👋</h1>
           <p className="text-slate-500 mt-1 font-medium">Ini adalah ringkasan performa Padepokan Satria Pinayungan hari ini.</p>
         </div>
         <div className="flex items-center space-x-3">
-           {/* Buttons removed as requested */}
+           {/* Quick actions handled in specific pages */}
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => {
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${filteredStatCards.length === 4 ? 'lg:grid-cols-4' : filteredStatCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
+        {filteredStatCards.map((stat, index) => {
           const Icon = stat.icon
           return (
             <Card key={index} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl overflow-hidden group hover:shadow-xl transition-all duration-300 bg-white">
@@ -275,11 +295,12 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-slate-900">Aksi Cepat</h2>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: 'Anggota', icon: Users, color: 'bg-indigo-50 text-indigo-600' },
-                { label: 'Keuangan', icon: DollarSign, color: 'bg-emerald-50 text-emerald-600' },
-                { label: 'Persuratan', icon: FileText, color: 'bg-amber-50 text-amber-600' },
-                { label: 'Laporan', icon: TrendingUp, color: 'bg-rose-50 text-rose-600' },
-              ].map((action, i) => (
+                { label: 'Anggota', icon: Users, color: 'bg-indigo-50 text-indigo-600', roles: ['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'] },
+                { label: 'Keuangan', icon: IDR, color: 'bg-emerald-50 text-emerald-600', roles: ['MASTER_ADMIN', 'BENDAHARA'] },
+                { label: 'Persuratan', icon: FileText, color: 'bg-amber-50 text-amber-600', roles: ['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'] },
+                { label: 'Laporan', icon: TrendingUp, color: 'bg-rose-50 text-rose-600', roles: ['MASTER_ADMIN', 'KETUA', 'BENDAHARA'] },
+              ].filter(action => !user || action.roles.includes(user.role))
+               .map((action, i) => (
                 <button key={i} className="flex flex-col items-center justify-center p-6 bg-white rounded-4xl hover:ring-2 hover:ring-[#5E17EB]/10 hover:shadow-md transition-all group border border-slate-100">
                   <div className={`p-3 rounded-2xl ${action.color} mb-3 group-hover:scale-110 transition-transform`}>
                     <action.icon className="h-6 w-6" />

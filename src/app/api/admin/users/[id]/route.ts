@@ -1,13 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { verifyAuth } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await verifyAuth(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (session.role !== 'MASTER_ADMIN' && session.role !== 'KETUA') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { id } = await params
+    const targetUser = await db.user.findUnique({ where: { id } })
+    
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Role Protection Logic: Only MASTER_ADMIN can manage MASTER_ADMIN & KETUA
+    if ((targetUser.role === 'MASTER_ADMIN' || targetUser.role === 'KETUA') && session.role !== 'MASTER_ADMIN') {
+      return NextResponse.json({ error: 'Hanya Master Admin yang dapat mengelola akun Ketua atau Master Admin' }, { status: 403 })
+    }
+
     const { name, email, password, role, phone, address } = await request.json()
 
     // Cek apakah email sudah digunakan oleh user lain
@@ -52,10 +73,31 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await verifyAuth(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (session.role !== 'MASTER_ADMIN' && session.role !== 'KETUA') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { id } = await params
     
-    // Mencegah penghapusan diri sendiri bisa dilakukan di frontend atau di sini jika kita punya akses ke session user.
-    // Untuk saat ini kita izinkan penghapusan user manapun.
+    // Self-deletion check
+    if (id === session.id) {
+      return NextResponse.json({ error: 'Anda tidak dapat menghapus akun Anda sendiri di sini' }, { status: 400 })
+    }
+
+    const targetUser = await db.user.findUnique({ where: { id } })
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Role Protection Logic: Only MASTER_ADMIN can delete MASTER_ADMIN & KETUA
+    if ((targetUser.role === 'MASTER_ADMIN' || targetUser.role === 'KETUA') && session.role !== 'MASTER_ADMIN') {
+      return NextResponse.json({ error: 'Hanya Master Admin yang dapat menghapus akun Ketua atau Master Admin' }, { status: 403 })
+    }
 
     await db.user.delete({ where: { id } })
     return NextResponse.json({ message: 'User deleted' })

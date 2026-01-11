@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 
+import { verifyAuth } from '@/lib/auth'
 const prisma = new PrismaClient()
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const notifications: any[] = []
 
@@ -59,18 +60,33 @@ export async function GET() {
       link: '/admin/lpj'
     })))
 
-    // Sort by time desc
-    notifications.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-
+    // Authenticate
+    const user = await verifyAuth(request)
+    
     // Calculate counts
     const unreadCount = await prisma.contactMessage.count({ where: { isRead: false } })
     const suratCount = await prisma.suratKeluar.count({ where: { status: 'MENUNGGU_VALIDASI' } })
     const lpjCount = await prisma.lPJ.count({ where: { status: 'DIAJUKAN' } })
-
-    // Calculate unread chat messages (messages sent TO the current user)
-    // Note: We'll need userId from auth context in real implementation
-    // For now, we'll just count all unread messages as a placeholder
     const unreadChatCount = await prisma.message.count({ where: { isRead: false } })
+
+    // Filter notifications array based on role if logged in
+    let filteredNotifications = [...notifications]
+    let total = unreadCount + unreadChatCount
+
+    if (user) {
+        if (user.role === 'MASTER_ADMIN' || user.role === 'KETUA') {
+            total += suratCount + lpjCount
+        } else if (user.role === 'SEKRETARIS') {
+            total += suratCount
+            filteredNotifications = filteredNotifications.filter(n => n.type !== 'LPJ')
+        } else if (user.role === 'BENDAHARA') {
+            total += lpjCount
+            filteredNotifications = filteredNotifications.filter(n => n.type !== 'SURAT' && n.type !== 'PESAN')
+        }
+    }
+    
+    // Sort by time desc
+    filteredNotifications.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
 
     return NextResponse.json({
       counts: {
@@ -78,9 +94,9 @@ export async function GET() {
         pendingSurat: suratCount,
         pendingLPJ: lpjCount,
         unreadChatMessages: unreadChatCount,
-        totalNotifications: unreadCount + unreadChatCount
+        totalNotifications: total
       },
-      notifications
+      notifications: filteredNotifications
     })
 
   } catch (error) {

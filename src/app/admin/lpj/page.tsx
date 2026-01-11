@@ -31,7 +31,6 @@ import {
   Download, 
   TrendingUp, 
   TrendingDown, 
-  DollarSign,
   ChevronRight,
   MoreVertical,
   Edit,
@@ -52,6 +51,10 @@ import { useRef } from 'react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import LaporanPDF from '../keuangan/components/LaporanPDF'
+
+const IDR = ({ className }: { className?: string }) => (
+  <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>IDR</div>
+)
 
 interface LPJ {
   id: string
@@ -347,6 +350,7 @@ export default function LpjPage() {
         logging: false,
         useCORS: true,
         backgroundColor: '#ffffff',
+        windowWidth: 794,
         onclone: (clonedDoc) => {
            const styles = clonedDoc.getElementsByTagName('style')
            const links = clonedDoc.getElementsByTagName('link')
@@ -371,9 +375,23 @@ export default function LpjPage() {
       })
       
       const imgWidth = 210
+      const pageHeight = 297
       const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      let heightLeft = imgHeight
+      let position = 0
+
+      // Page 1
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      // Extra pages
+      while (heightLeft > 0.5) {
+        pdf.addPage()
+        position = heightLeft - imgHeight
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
       pdf.save(`Laporan_LPJ_${lpj.periode.replace(/\s+/g, '_')}.pdf`)
       
       toast.success('Laporan berhasil diunduh', { id: toastId })
@@ -407,9 +425,7 @@ export default function LpjPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    return 'IDR ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
   }
@@ -603,6 +619,7 @@ export default function LpjPage() {
                                         size="icon"
                                         className="h-11 w-11 rounded-2xl border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all duration-300 shadow-sm" 
                                         onClick={() => handleDeleteLPJ(lpj.id)}
+                                        disabled={lpj.status === 'DISETUJUI' && currentUser?.role === 'BENDAHARA'}
                                         title="Hapus Laporan"
                                     >
                                         <Trash2 className="h-5 w-5" />
@@ -692,7 +709,7 @@ export default function LpjPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Total Pemasukan</Label>
                             <div className="relative group">
-                                <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+                                <IDR className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
                                 <Input 
                                     type="number"
                                     className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50/50 font-bold text-emerald-600"
@@ -705,7 +722,7 @@ export default function LpjPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Total Pengeluaran</Label>
                             <div className="relative">
-                                <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-rose-500" />
+                                <IDR className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-rose-500" />
                                 <Input 
                                     type="number"
                                     className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50/50 font-bold text-rose-600"
@@ -799,7 +816,7 @@ export default function LpjPage() {
                         <h4 className="text-3xl font-black text-indigo-900">{formatCurrency(selectedLPJ.saldo)}</h4>
                     </div>
                     <div className="h-16 w-16 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                        <DollarSign className="h-8 w-8 text-indigo-600" />
+                        <IDR className="h-8 w-8 text-indigo-600" />
                     </div>
                 </div>
 

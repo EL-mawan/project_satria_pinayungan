@@ -125,6 +125,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Izin ditolak' }, { status: 403 })
     }
 
+    if (lpj.status === 'DISETUJUI' && user.role === 'BENDAHARA') {
+      return NextResponse.json({ error: 'LPJ yang sudah disetujui tidak dapat dihapus' }, { status: 403 })
+    }
+
     await db.lPJ.delete({ where: { id } })
     return NextResponse.json({ message: 'LPJ berhasil dihapus' })
   } catch (error: any) {

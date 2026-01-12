@@ -198,8 +198,13 @@ export default function ProposalBuilderPage() {
         const date = new Date(dateInput)
         const formatted = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         setData(prev => ({ ...prev, tanggal: formatted }))
+
+        // Auto-update Nomor Surat if creating new or in Draft
+        if (!proposalId || proposalStatus === 'DRAFT') {
+            fetchNextNomorSurat(dateInput)
+        }
     }
-  }, [dateInput])
+  }, [dateInput, proposalId, proposalStatus])
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -335,10 +340,11 @@ export default function ProposalBuilderPage() {
     }
   }
 
-  const fetchNextNomorSurat = async () => {
+  const fetchNextNomorSurat = async (targetDate?: string) => {
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/surat/keluar?action=next-number', {
+      const url = `/api/surat/keluar?action=next-number${targetDate ? `&date=${targetDate}` : ''}`
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {

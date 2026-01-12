@@ -4,6 +4,11 @@ import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
+const toRoman = (num: number) => {
+  const roman = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+  return roman[num - 1] || num.toString();
+};
+
 // Helper function to verify token and get user
 async function verifyAuth(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -35,7 +40,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     // For next-number preview in frontend
     if (searchParams.get('action') === 'next-number') {
-      const currentYear = new Date().getFullYear()
+      const requestedDate = searchParams.get('date') ? new Date(searchParams.get('date')!) : new Date()
+      const currentYear = requestedDate.getFullYear()
       const count = await db.suratKeluar.count({
         where: {
           createdAt: {
@@ -44,8 +50,8 @@ export async function GET(request: NextRequest) {
           }
         }
       })
-      const month = new Date().getMonth() + 1
-      const nextNomor = `${String(count + 1).padStart(3, '0')}/SPP-RG/${month}/${currentYear}`
+      const month = toRoman(requestedDate.getMonth() + 1)
+      const nextNomor = `${String(count + 1).padStart(3, '0')}/PSPRG-RG/${month}/${currentYear}`
       return NextResponse.json({ nextNomor })
     }
 
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { tujuan, perihal, jenis, isi, template, tanggal } = await request.json()
+    const { nomor, tujuan, perihal, jenis, isi, template, tanggal } = await request.json()
 
     if (!tujuan || !perihal || !jenis) {
       return NextResponse.json(
@@ -137,21 +143,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate nomor surat otomatis (Yearly sequence)
-    const currentYear = new Date().getFullYear()
-    const month = new Date().getMonth() + 1
+    const month = toRoman(new Date(tanggal || new Date()).getMonth() + 1)
+    const yearLetter = new Date(tanggal || new Date()).getFullYear()
     
     // Count existing surat for this year to get sequence number
     const count = await db.suratKeluar.count({
       where: {
         createdAt: {
-          gte: new Date(currentYear, 0, 1),
-          lt: new Date(currentYear + 1, 0, 1)
+          gte: new Date(yearLetter, 0, 1),
+          lt: new Date(yearLetter + 1, 0, 1)
         }
       }
     })
     
-    const nomorSurat = `${String(count + 1).padStart(3, '0')}/SPP-RG/${month}/${currentYear}`
+    // Use provided nomor if exists, otherwise generate next
+    const nomorSurat = nomor || `${String(count + 1).padStart(3, '0')}/PSPRG-RG/${month}/${yearLetter}`
 
     const surat = await db.suratKeluar.create({
       data: {

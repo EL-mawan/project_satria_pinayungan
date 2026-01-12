@@ -86,7 +86,7 @@ export async function PUT(
   }
 
   try {
-    const { tujuan, perihal, jenis, isi, template, status, catatan, tanggal } = await request.json()
+    const { nomor, tujuan, perihal, jenis, isi, template, status, catatan, tanggal } = await request.json()
 
     const existingSurat = await db.suratKeluar.findUnique({
       where: { id }
@@ -108,6 +108,7 @@ export async function PUT(
     }
 
     const updateData: any = {}
+    if (nomor) updateData.nomor = nomor
     if (tujuan) updateData.tujuan = tujuan
     if (perihal) updateData.perihal = perihal
     if (jenis) updateData.jenis = jenis

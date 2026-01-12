@@ -56,7 +56,9 @@ interface UndanganData {
   acara: {
     hari: string
     tanggal: string
+    waktu: string
     tempat: string
+    namaAcara: string
   }
   textPenutup: string
   namaKetua: string
@@ -87,7 +89,9 @@ const initialData: UndanganData = {
   acara: {
     hari: '',
     tanggal: '',
-    tempat: ''
+    waktu: '',
+    tempat: '',
+    namaAcara: ''
   },
   textPenutup: 'Demikian surat undangan ini kami sampaikan, semoga dapat dikabulkan serta dapat dipahami, dan besar harapan kami semoga bapak pimpinan dapat merealisasikan undangan tersebut atas perhatiannya kami ucapkan terimakasih.\n\nWassalamu a\'laikum wr.wb',
   namaKetua: '',
@@ -197,7 +201,11 @@ export default function UndanganBuilderPage() {
         if (json.data && json.data.isi) {
           try {
             const parsed = JSON.parse(json.data.isi)
-            setData({ ...initialData, ...parsed })
+            setData({ 
+              ...initialData, 
+              ...parsed,
+              acara: { ...initialData.acara, ...(parsed.acara || {}) }
+            })
             if (parsed.bulkRecipients) {
               setBulkRecipients(parsed.bulkRecipients)
             }
@@ -1250,7 +1258,20 @@ export default function UndanganBuilderPage() {
                         className="mt-1 bg-white"
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
+                      <Label className="text-gray-500 text-xs">Waktu</Label>
+                      <Input
+                        value={data.acara.waktu}
+                        onChange={(e) => setData(prev => ({ 
+                          ...prev, 
+                          acara: { ...prev.acara, waktu: e.target.value }
+                        }))}
+                        placeholder="09.00 WIB s/d Selesai"
+                        disabled={isViewMode}
+                        className="mt-1 bg-white"
+                      />
+                    </div>
+                    <div>
                       <Label className="text-gray-500 text-xs">Tempat</Label>
                       <Input
                         value={data.acara.tempat}
@@ -1259,6 +1280,19 @@ export default function UndanganBuilderPage() {
                           acara: { ...prev.acara, tempat: e.target.value }
                         }))}
                         placeholder="Lokasi Acara"
+                        disabled={isViewMode}
+                        className="mt-1 bg-white"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-gray-500 text-xs">Acara</Label>
+                      <Input
+                        value={data.acara.namaAcara}
+                        onChange={(e) => setData(prev => ({ 
+                          ...prev, 
+                          acara: { ...prev.acara, namaAcara: e.target.value }
+                        }))}
+                        placeholder="Nama Kegiatan / Agenda"
                         disabled={isViewMode}
                         className="mt-1 bg-white"
                       />
@@ -1703,19 +1737,24 @@ export default function UndanganBuilderPage() {
                             <table style={{ width: 'auto' }}>
                               <tbody>
                                 <tr>
-                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Hari</td>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Hari/Tanggal</td>
                                   <td style={{ verticalAlign: 'top' }}>:</td>
-                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.hari}</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.hari}{data.acara.hari && data.acara.tanggal ? ', ' : ''}{data.acara.tanggal}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tanggal</td>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Waktu</td>
                                   <td style={{ verticalAlign: 'top' }}>:</td>
-                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tanggal}</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.waktu}</td>
                                 </tr>
                                 <tr>
                                   <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Tempat</td>
                                   <td style={{ verticalAlign: 'top' }}>:</td>
                                   <td style={{ paddingLeft: '10px', verticalAlign: 'top' }}>{data.acara.tempat}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ paddingRight: '20px', verticalAlign: 'top' }}>Acara</td>
+                                  <td style={{ verticalAlign: 'top' }}>:</td>
+                                  <td style={{ paddingLeft: '10px', verticalAlign: 'top', fontWeight: 'bold' }}>{data.acara.namaAcara}</td>
                                 </tr>
                               </tbody>
                             </table>

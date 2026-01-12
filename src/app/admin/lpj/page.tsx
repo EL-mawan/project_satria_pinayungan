@@ -32,8 +32,6 @@ import {
   Download, 
   TrendingUp, 
   TrendingDown, 
-  ChevronRight,
-  MoreVertical,
   Edit,
   Trash2,
   CheckCircle2,
@@ -42,8 +40,6 @@ import {
   Loader2,
   Send,
   Eye,
-  ArrowRight,
-  Printer,
   CheckCircle
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -101,32 +97,7 @@ export default function LpjPage() {
     refetchInterval: 15000,
   })
 
-  // Pre-fetch related data for PDF gen
-  const { data: pemasukanData } = useQuery({
-    queryKey: ['pemasukan'],
-    queryFn: async () => {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/keuangan/pemasukan', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      return res.json()
-    }
-  })
-
-  const { data: pengeluaranData } = useQuery({
-    queryKey: ['pengeluaran'],
-    queryFn: async () => {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/keuangan/pengeluaran', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      return res.json()
-    }
-  })
-
   const lpjList = lpjData?.data || []
-  const pemasukanList = pemasukanData?.data || []
-  const pengeluaranList = pengeluaranData?.data || []
 
   // Dialog & Selection States
   const [selectedLPJ, setSelectedLPJ] = useState<LPJ | null>(null)
@@ -335,52 +306,53 @@ export default function LpjPage() {
       // 1. Fetch ALL pemasukan and pengeluaran to filter
       toast.loading('Mengambil data keuangan...', { id: toastId })
       
+      // Use a timeout for fetch to prevent hanging
+      const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), timeout)
+        try {
+          const response = await fetch(url, { ...options, signal: controller.signal })
+          clearTimeout(id)
+          return response
+        } catch (error) {
+          clearTimeout(id)
+          throw error
+        }
+      }
+
       const [pemRes, pengRes] = await Promise.all([
-        fetch('/api/keuangan/pemasukan?limit=2000', { 
+        fetchWithTimeout(`/api/keuangan/pemasukan?limit=5000&startDate=${lpj.tanggalMulai}&endDate=${lpj.tanggalSelesai}`, { 
           headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store' 
         }),
-        fetch('/api/keuangan/pengeluaran?limit=2000', { 
+        fetchWithTimeout(`/api/keuangan/pengeluaran?limit=5000&startDate=${lpj.tanggalMulai}&endDate=${lpj.tanggalSelesai}`, { 
           headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store'
         })
       ])
 
       if (!pemRes.ok) {
-        if (pemRes.status === 401) {
-             // Redirect or just throw specific error
-             throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
-        }
+        if (pemRes.status === 401) throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
         const err = await pemRes.json().catch(() => ({}))
-        throw new Error(`Gagal mengambil data pemasukan: ${err.error || pemRes.statusText}`)
+        throw new Error(err.error || `Gagal mengambil data pemasukan (${pemRes.status})`)
       }
       
       if (!pengRes.ok) {
-        if (pengRes.status === 401) {
-             throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
-        }
+        if (pengRes.status === 401) throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
         const err = await pengRes.json().catch(() => ({}))
-        throw new Error(`Gagal mengambil data pengeluaran: ${err.error || pengRes.statusText}`)
+        throw new Error(err.error || `Gagal mengambil data pengeluaran (${pengRes.status})`)
       }
 
       const pemData = await pemRes.json()
       const pengData = await pengRes.json()
 
-      // 2. Filter data based on LPJ dates
-      const startDate = new Date(lpj.tanggalMulai)
-      startDate.setHours(0, 0, 0, 0)
-      const endDate = new Date(lpj.tanggalSelesai)
-      endDate.setHours(23, 59, 59, 999)
+      const filteredPemasukan = pemData.data || []
+      const filteredPengeluaran = pengData.data || []
 
-      const filteredPemasukan = pemData.data.filter((item: any) => {
-        const date = new Date(item.tanggal)
-        return date >= startDate && date <= endDate
-      })
-
-      const filteredPengeluaran = pengData.data.filter((item: any) => {
-        const date = new Date(item.tanggal)
-        return date >= startDate && date <= endDate
-      })
+      // 2. Validate Data Size
+      if (filteredPemasukan.length + filteredPengeluaran.length > 3000) {
+        toast.warning('Data laporan terlalu besar. PDF mungkin membutuhkan waktu lama untuk dibuat.', { id: toastId })
+      }
 
       const totalPemasukan = filteredPemasukan.reduce((acc: number, curr: any) => acc + curr.nominal, 0)
       const totalPengeluaran = filteredPengeluaran.reduce((acc: number, curr: any) => acc + curr.nominal, 0)
@@ -400,78 +372,55 @@ export default function LpjPage() {
 
       // 4. Wait for render
       toast.loading('Membuat dokumen PDF...', { id: toastId })
-      await new Promise(resolve => setTimeout(resolve, 800))
+      await new Promise(resolve => setTimeout(resolve, 1500)) // Increased wait time
 
       const element = pdfRef.current
       if (!element) {
-        throw new Error('Element PDF tidak ditemukan')
+        throw new Error('Element PDF tidak ditemukan/gagal dirender')
+      }
+
+      // Check content height
+      if (element.clientHeight === 0) {
+        throw new Error('Konten PDF kosong (height 0)')
       }
 
       const canvas = await html2canvas(element, {
-        scale: 2, 
-        logging: false,
+        scale: 1.5, // Reduced scale slightly for stability with large data
+        logging: true, // Enable logging for debugging
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         windowWidth: 794,
-        ignoreElements: (element) => {
-          // Ignore elements that might have unsupported color formats
-          return element.classList?.contains('ignore-pdf') || false
-        },
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('laporan-pdf')
           if (clonedElement) {
+            // Safe cleanup
+            const head = clonedDoc.head;
+            const styleTags = head.querySelectorAll('style');
+            styleTags.forEach(tag => tag.remove()); // Only remove style tags, keep links if needed
+
+            // Add safe print styles
+            const safeStyle = clonedDoc.createElement('style');
+            safeStyle.innerHTML = `
+              * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box !important; }
+              body { background: white !important; margin: 0 !important; padding: 0 !important; }
+              #laporan-pdf { display: block !important; visibility: visible !important; position: relative !important; left: 0 !important; top: 0 !important; }
+              table { border-collapse: collapse !important; width: 100% !important; }
+              th, td { border: 1px solid black !important; }
+            `;
+            head.appendChild(safeStyle);
+
             clonedElement.style.display = 'block'
             clonedElement.style.visibility = 'visible'
-            clonedElement.style.position = 'relative'
-            clonedElement.style.left = '0'
-            clonedElement.style.top = '0'
             
-            // Inject a style tag to override any potential problematic Tailwind colors globaly in the clone
-            const style = clonedDoc.createElement('style')
-            style.innerHTML = `
-              * {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-              /* Remove Tailwind ring and shadow variables that often use oklch/lab */
-              *, ::before, ::after {
-                --tw-ring-color: transparent !important;
-                --tw-shadow: 0 0 #0000 !important;
-                --tw-shadow-colored: 0 0 #0000 !important;
-                --tw-outline-style: none !important;
-                /* Force standard fonts */
-                font-family: serif !important;
-              }
-            `
-            clonedDoc.head.appendChild(style)
-
-            // Force all colors to be standard hex/rgb for all elements in the target
+             // Force colors
             const allElements = clonedElement.querySelectorAll('*')
-            
-            // Helper to convert lab/oklch to safe colors if found
-            const sanitizeValue = (val: string, fallback: string) => {
-              if (!val) return fallback;
-              const v = val.toLowerCase();
-              if (v.includes('lab(') || v.includes('oklch(') || v.includes('hwb(') || v.includes('oklab(')) {
-                return fallback;
-              }
-              return val;
-            };
-
             allElements.forEach((el: any) => {
               const styles = window.getComputedStyle(el);
-              
-              // Force direct styles for html2canvas to pick up
-              el.style.backgroundColor = sanitizeValue(styles.backgroundColor, '#ffffff');
-              el.style.color = sanitizeValue(styles.color, '#000000');
-              el.style.borderColor = sanitizeValue(styles.borderColor, '#000000');
-              el.style.boxShadow = 'none';
-              el.style.outline = 'none';
-              
-              if (el.tagName === 'svg' || el.tagName === 'path') {
-                el.style.fill = sanitizeValue(styles.fill, 'currentColor');
-                el.style.stroke = sanitizeValue(styles.stroke, 'currentColor');
+              if (el.tagName !== 'IMG' && el.tagName !== 'SVG') {
+                 // Basic sanitization
+                 if (styles.backgroundColor && styles.backgroundColor !== 'rgba(0, 0, 0, 0)') el.style.backgroundColor = styles.backgroundColor;
+                 if (styles.color) el.style.color = styles.color;
               }
             })
           }
@@ -479,6 +428,11 @@ export default function LpjPage() {
       })
       
       const imgData = canvas.toDataURL('image/png')
+      // Validate image data
+      if (imgData === 'data:,' || imgData.length < 1000) {
+        throw new Error('Gagal mengkonversi canvas ke gambar')
+      }
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -509,7 +463,11 @@ export default function LpjPage() {
       toast.success('Laporan berhasil diunduh', { id: toastId })
     } catch (error) {
       console.error('Error generating PDF:', error)
-      toast.error(`Gagal membuat PDF: ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`, { id: toastId })
+      toast.error(`Gagal: ${error instanceof Error ? error.message : 'Kesalahan tidak diketahui'}`, { 
+        id: toastId,
+        duration: 5000,
+        description: 'Periksa koneksi atau coba muat ulang halaman'
+      })
     } finally {
       setIsGeneratingPdf(false)
     }
@@ -1046,7 +1004,7 @@ export default function LpjPage() {
       </Dialog>
 
       {/* Hidden PDF Component */}
-      <div className="fixed top-0 left-[-9999px] -z-50">
+      <div className="absolute top-0 left-[-9999px] width-[210mm] overflow-visible -z-50">
         <LaporanPDF 
           ref={pdfRef}
           pemasukanList={pdfData.pemasukanList}

@@ -19,26 +19,14 @@ import {
   TrendingUp, 
   TrendingDown, 
   Calendar,
-  FileText,
-  Download,
-  Eye,
   Edit,
   Trash2,
-  Receipt,
-  Calculator,
-  ChevronRight,
-  MoreVertical,
-  ArrowUpRight,
-  ArrowDownRight,
   Filter,
-  CheckCircle2,
-  Info
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
-import LaporanPDF from './components/LaporanPDF'
 
 const IDR = ({ className }: { className?: string }) => (
   <div className={`${className} font-bold text-[10px] flex items-center justify-center`}>Rp</div>
@@ -98,7 +86,6 @@ function KeuanganContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showLPJDialog, setShowLPJDialog] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
@@ -195,21 +182,6 @@ function KeuanganContent() {
     tanggalMulai: '',
     tanggalSelesai: '',
     keterangan: ''
-  })
-
-  // PDF Data State for filtered report
-  const [pdfData, setPdfData] = useState<{
-    pemasukanList: Pemasukan[]
-    pengeluaranList: Pengeluaran[]
-    summary: { totalPemasukan: number; totalPengeluaran: number; saldo: number }
-    tanggalMulai?: string
-    tanggalSelesai?: string
-  }>({
-    pemasukanList: [],
-    pengeluaranList: [],
-    summary: { totalPemasukan: 0, totalPengeluaran: 0, saldo: 0 },
-    tanggalMulai: '',
-    tanggalSelesai: ''
   })
 
   const summary = {
@@ -422,158 +394,6 @@ function KeuanganContent() {
     }
   }
 
-  /* PDF Download Handler */
-  const pdfRef = useRef<HTMLDivElement>(null)
-  
-  const handleDownloadPDF = async (lpj: LPJ) => {
-    if (!pdfRef.current) return
-    
-    setIsGeneratingPdf(true)
-    const toastId = toast.loading('Menyiapkan data laporan...')
-    
-    try {
-      // 1. Filter data based on LPJ dates
-      const startDate = new Date(lpj.tanggalMulai)
-      const endDate = new Date(lpj.tanggalSelesai)
-      // Adjust endDate to include the full day
-      endDate.setHours(23, 59, 59, 999)
-
-      const filteredPemasukan = pemasukanList.filter(item => {
-        const date = new Date(item.tanggal)
-        return date >= startDate && date <= endDate
-      })
-
-      const filteredPengeluaran = pengeluaranList.filter(item => {
-        const date = new Date(item.tanggal)
-        return date >= startDate && date <= endDate
-      })
-
-      const totalPemasukan = filteredPemasukan.reduce((acc, curr) => acc + curr.nominal, 0)
-      const totalPengeluaran = filteredPengeluaran.reduce((acc, curr) => acc + curr.nominal, 0)
-
-      // 2. Set PDF Data
-      setPdfData({
-        pemasukanList: filteredPemasukan,
-        pengeluaranList: filteredPengeluaran,
-        summary: {
-          totalPemasukan,
-          totalPengeluaran,
-          saldo: totalPemasukan - totalPengeluaran
-        },
-        tanggalMulai: lpj.tanggalMulai,
-        tanggalSelesai: lpj.tanggalSelesai
-      })
-
-      // 3. Wait for render (short delay to ensure state update and DOM sync)
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      const element = pdfRef.current
-      
-      const canvas = await html2canvas(element, {
-        scale: 2, 
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        windowWidth: 794, // Approx 210mm at 96dpi
-        ignoreElements: (element) => {
-          // Ignore elements that might have unsupported color formats
-          return element.classList?.contains('ignore-pdf') || false
-        },
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.getElementById('laporan-pdf')
-          if (clonedElement) {
-            clonedElement.style.display = 'block'
-            clonedElement.style.visibility = 'visible'
-            clonedElement.style.position = 'relative'
-            clonedElement.style.left = '0'
-            clonedElement.style.top = '0'
-            
-            // Inject a style tag to override any potential problematic Tailwind colors
-            const style = clonedDoc.createElement('style')
-            style.innerHTML = `
-              * {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-              *, ::before, ::after {
-                --tw-ring-color: transparent !important;
-                --tw-shadow: 0 0 #0000 !important;
-                --tw-shadow-colored: 0 0 #0000 !important;
-                --tw-outline-style: none !important;
-                font-family: serif !important;
-              }
-            `
-            clonedDoc.head.appendChild(style)
-
-            // Force all colors to be standard hex/rgb
-            const allElements = clonedElement.querySelectorAll('*')
-
-            // Helper to convert lab/oklch to safe colors if found
-            const sanitizeValue = (val: string, fallback: string) => {
-              if (!val) return fallback;
-              const v = val.toLowerCase();
-              if (v.includes('lab(') || v.includes('oklch(') || v.includes('hwb(') || v.includes('oklab(')) {
-                return fallback;
-              }
-              return val;
-            };
-
-            allElements.forEach((el: any) => {
-              const styles = window.getComputedStyle(el);
-              
-              // Force direct styles for html2canvas to pick up
-              el.style.backgroundColor = sanitizeValue(styles.backgroundColor, '#ffffff');
-              el.style.color = sanitizeValue(styles.color, '#000000');
-              el.style.borderColor = sanitizeValue(styles.borderColor, '#000000');
-              el.style.boxShadow = 'none';
-              el.style.outline = 'none';
-              
-              if (el.tagName === 'svg' || el.tagName === 'path') {
-                el.style.fill = sanitizeValue(styles.fill, 'currentColor');
-                el.style.stroke = sanitizeValue(styles.stroke, 'currentColor');
-              }
-            })
-          }
-        }
-      })
-      
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-      
-      const imgWidth = 210
-      const pageHeight = 297
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-      let position = 0
-
-      // First page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      // Subsequent pages if any
-      while (heightLeft > 0.5) { // Small buffer for rounding
-        pdf.addPage()
-        position = heightLeft - imgHeight
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
-
-      pdf.save(`Laporan_Keuangan_${new Date().getTime()}.pdf`)
-      
-      toast.success('Laporan berhasil diunduh', { id: toastId })
-    } catch (error) {
-      console.error('Error generating PDF:', error)
-      toast.error(`Gagal membuat PDF: ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`, { id: toastId })
-    } finally {
-      setIsGeneratingPdf(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
@@ -589,17 +409,6 @@ function KeuanganContent() {
 
   return (
     <div className="space-y-10 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Off-screen PDF Component for Capture */}
-      <div className="fixed top-0 left-[-9999px] -z-50">
-        <LaporanPDF 
-          ref={pdfRef}
-          pemasukanList={pdfData.pemasukanList}
-          pengeluaranList={pdfData.pengeluaranList}
-          summary={pdfData.summary}
-          tanggalMulai={pdfData.tanggalMulai}
-          tanggalSelesai={pdfData.tanggalSelesai}
-        />
-      </div>
 
       {/* Header */}
       <div>

@@ -394,16 +394,33 @@ export default function LpjPage() {
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('laporan-pdf')
           if (clonedElement) {
+            // Helper to convert any color to safe RGB/Hex using Canvas
+            const ctx = document.createElement('canvas').getContext('2d');
+            const getSafeColor = (color: string) => {
+                if (!ctx || !color) return color;
+                // If it's already safe, return it
+                if (color.startsWith('#') || color.startsWith('rgb') || color === 'transparent') return color;
+                
+                // Try to convert using canvas
+                ctx.fillStyle = color;
+                const computed = ctx.fillStyle;
+                if (computed && !computed.includes('lab') && !computed.includes('oklch')) {
+                    return computed;
+                }
+                // Fallback if canvas also returns weird format or fails (unlikely in modern browsers for standard named colors, but lab support varies)
+                return '#000000'; 
+            };
+
             // Safe cleanup
             const head = clonedDoc.head;
-            const styleTags = head.querySelectorAll('style');
-            styleTags.forEach(tag => tag.remove()); // Only remove style tags, keep links if needed
+            const styleTags = head.querySelectorAll('style, link[rel="stylesheet"]');
+            styleTags.forEach(tag => tag.remove()); 
 
             // Add safe print styles
             const safeStyle = clonedDoc.createElement('style');
             safeStyle.innerHTML = `
               * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box !important; }
-              body { background: white !important; margin: 0 !important; padding: 0 !important; }
+              body { background: white !important; margin: 0 !important; padding: 0 !important; color: black !important; }
               #laporan-pdf { display: block !important; visibility: visible !important; position: relative !important; left: 0 !important; top: 0 !important; }
               table { border-collapse: collapse !important; width: 100% !important; }
               th, td { border: 1px solid black !important; }
@@ -413,14 +430,31 @@ export default function LpjPage() {
             clonedElement.style.display = 'block'
             clonedElement.style.visibility = 'visible'
             
-             // Force colors
+            // Force colors to safe values
             const allElements = clonedElement.querySelectorAll('*')
             allElements.forEach((el: any) => {
               const styles = window.getComputedStyle(el);
-              if (el.tagName !== 'IMG' && el.tagName !== 'SVG') {
-                 // Basic sanitization
-                 if (styles.backgroundColor && styles.backgroundColor !== 'rgba(0, 0, 0, 0)') el.style.backgroundColor = styles.backgroundColor;
-                 if (styles.color) el.style.color = styles.color;
+              
+              // Properties to sanitize
+              const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor'];
+              
+              props.forEach(prop => {
+                  const val = styles[prop as any];
+                  if (val && (val.includes('lab') || val.includes('oklch'))) {
+                       // Force convert to safe color
+                       el.style[prop as any] = getSafeColor(val);
+                  } else if (val && !el.style[prop as any]) {
+                       // If explicit style missing, set it from computed (safely)
+                       el.style[prop as any] = val;
+                  }
+              });
+
+              // SVGs need special handling for fill/stroke
+              if (el.tagName === 'svg' || el.tagName === 'path' || el.tagName === 'circle' || el.tagName === 'rect') {
+                const fill = styles.fill;
+                const stroke = styles.stroke;
+                if (fill && fill !== 'none') el.style.fill = getSafeColor(fill);
+                if (stroke && stroke !== 'none') el.style.stroke = getSafeColor(stroke);
               }
             })
           }

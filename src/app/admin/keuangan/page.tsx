@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -93,18 +94,72 @@ function KeuanganContent() {
   
   const [user, setUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState(tabParam || 'pemasukan')
-  const [pemasukanList, setPemasukanList] = useState<Pemasukan[]>([])
-  const [pengeluaranList, setPengeluaranList] = useState<Pengeluaran[]>([])
-  const [lpjList, setLpjList] = useState<LPJ[]>([])
-  const [kegiatanList, setKegiatanList] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showLPJDialog, setShowLPJDialog] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
-  
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const queryClient = useQueryClient()
+
+  const { data: pemasukanData, isLoading: loadingPemasukan } = useQuery({
+    queryKey: ['pemasukan'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/pemasukan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch pemasukan')
+      return res.json()
+    },
+    refetchInterval: 10000, // Auto sync every 10 seconds
+    refetchOnWindowFocus: true
+  })
+
+  const { data: pengeluaranData, isLoading: loadingPengeluaran } = useQuery({
+    queryKey: ['pengeluaran'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/pengeluaran', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch pengeluaran')
+      return res.json()
+    },
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true
+  })
+
+  const { data: lpjData, isLoading: loadingLPJ } = useQuery({
+    queryKey: ['lpj'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/lpj', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch lpj')
+      return res.json()
+    }
+  })
+
+  const { data: kegiatanData } = useQuery({
+    queryKey: ['kegiatan'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/kegiatan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch kegiatan')
+      return res.json()
+    }
+  })
+
+  const pemasukanList = pemasukanData?.data || []
+  const pengeluaranList = pengeluaranData?.data || []
+  const lpjList = lpjData?.data || []
+  const kegiatanList = kegiatanData?.data || []
+  const loading = loadingPemasukan || loadingPengeluaran || loadingLPJ
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -157,78 +212,16 @@ function KeuanganContent() {
     tanggalSelesai: ''
   })
 
-  const [summary, setSummary] = useState({
-    totalPemasukan: 0,
-    totalPengeluaran: 0,
-    saldo: 0
-  })
+  const summary = {
+    totalPemasukan: pemasukanData?.summary?.totalNominal || 0,
+    totalPengeluaran: pengeluaranData?.summary?.totalNominal || 0,
+    saldo: (pemasukanData?.summary?.totalNominal || 0) - (pengeluaranData?.summary?.totalNominal || 0)
+  }
 
   const formatCurrency = (amount: number) => {
     return 'Rp ' + new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 0
     }).format(amount)
-  }
-
-  const fetchPemasukan = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/keuangan/pemasukan', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setPemasukanList(data.data)
-        setSummary(prev => ({ ...prev, totalPemasukan: data.summary.totalNominal }))
-      }
-    } catch (error) {
-      console.error('Error fetching pemasukan:', error)
-    }
-  }
-
-  const fetchPengeluaran = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/keuangan/pengeluaran', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setPengeluaranList(data.data)
-        setSummary(prev => ({ ...prev, totalPengeluaran: data.summary.totalNominal }))
-      }
-    } catch (error) {
-      console.error('Error fetching pengeluaran:', error)
-    }
-  }
-
-  const fetchLPJ = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/keuangan/lpj', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setLpjList(data.data)
-      }
-    } catch (error) {
-      console.error('Error fetching LPJ:', error)
-    }
-  }
-
-  const fetchKegiatan = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/kegiatan', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setKegiatanList(data.data || [])
-      }
-    } catch (error) {
-      console.error('Error fetching kegiatan:', error)
-    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,27 +234,6 @@ function KeuanganContent() {
       reader.readAsDataURL(file)
     }
   }
-
-  useEffect(() => {
-    const loadAllData = async () => {
-      setLoading(true)
-      await Promise.all([
-        fetchPemasukan(),
-        fetchPengeluaran(),
-        fetchLPJ(),
-        fetchKegiatan()
-      ])
-      setLoading(false)
-    }
-    loadAllData()
-  }, [])
-
-  useEffect(() => {
-    setSummary(prev => ({
-      ...prev,
-      saldo: prev.totalPemasukan - prev.totalPengeluaran
-    }))
-  }, [summary.totalPemasukan, summary.totalPengeluaran])
 
   // Auto-calculate nominal for Pengeluaran
   useEffect(() => {
@@ -334,11 +306,10 @@ function KeuanganContent() {
           kegiatanId: '',
           bukti: ''
         })
-        if (activeTab === 'pemasukan') {
-          fetchPemasukan()
-        } else {
-          fetchPengeluaran()
-        }
+        
+        // Invalidate queries to refresh data quickly
+        queryClient.invalidateQueries({ queryKey: ['pemasukan'] })
+        queryClient.invalidateQueries({ queryKey: ['pengeluaran'] })
       } else {
         const data = await response.json()
         toast.error(data.error || 'Gagal menyimpan data')
@@ -372,7 +343,8 @@ function KeuanganContent() {
           tanggalSelesai: '',
           keterangan: ''
         })
-        fetchLPJ()
+        // Invalidate queries to refresh data quickly
+        queryClient.invalidateQueries({ queryKey: ['lpj'] })
       } else {
         const data = await response.json()
         toast.error(data.error || 'Gagal membuat LPJ')
@@ -422,13 +394,9 @@ function KeuanganContent() {
 
       if (response.ok) {
         toast.success('Data berhasil dihapus', { id: toastId })
-        // Wait a bit before refreshing to ensure database consistency
-        await new Promise(resolve => setTimeout(resolve, 300))
-        if (activeTab === 'pemasukan') {
-          await fetchPemasukan()
-        } else {
-          await fetchPengeluaran()
-        }
+        // Invalidate queries to refresh data quickly
+        queryClient.invalidateQueries({ queryKey: ['pemasukan'] })
+        queryClient.invalidateQueries({ queryKey: ['pengeluaran'] })
       } else {
         toast.error(data.error || 'Gagal menghapus data', { 
           id: toastId,
@@ -540,21 +508,31 @@ function KeuanganContent() {
 
             // Force all colors to be standard hex/rgb
             const allElements = clonedElement.querySelectorAll('*')
-            allElements.forEach((el: any) => {
-              const styles = window.getComputedStyle(el)
-              
-              const checkAndFix = (prop: string, fallback: string) => {
-                const val = (el.style as any)[prop] || styles.getPropertyValue(prop)
-                if (val && (val.includes('lab') || val.includes('oklch') || val.includes('hwb'))) {
-                  el.style.setProperty(prop, fallback, 'important')
-                }
-              }
 
-              checkAndFix('backgroundColor', '#ffffff')
-              checkAndFix('color', '#000000')
-              checkAndFix('borderColor', '#000000')
-              checkAndFix('fill', 'currentColor')
-              checkAndFix('stroke', 'currentColor')
+            // Helper to convert lab/oklch to safe colors if found
+            const sanitizeValue = (val: string, fallback: string) => {
+              if (!val) return fallback;
+              const v = val.toLowerCase();
+              if (v.includes('lab(') || v.includes('oklch(') || v.includes('hwb(') || v.includes('oklab(')) {
+                return fallback;
+              }
+              return val;
+            };
+
+            allElements.forEach((el: any) => {
+              const styles = window.getComputedStyle(el);
+              
+              // Force direct styles for html2canvas to pick up
+              el.style.backgroundColor = sanitizeValue(styles.backgroundColor, '#ffffff');
+              el.style.color = sanitizeValue(styles.color, '#000000');
+              el.style.borderColor = sanitizeValue(styles.borderColor, '#000000');
+              el.style.boxShadow = 'none';
+              el.style.outline = 'none';
+              
+              if (el.tagName === 'svg' || el.tagName === 'path') {
+                el.style.fill = sanitizeValue(styles.fill, 'currentColor');
+                el.style.stroke = sanitizeValue(styles.stroke, 'currentColor');
+              }
             })
           }
         }

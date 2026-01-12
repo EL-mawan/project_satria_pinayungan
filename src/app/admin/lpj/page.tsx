@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,7 +48,6 @@ import {
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { useRef } from 'react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import LaporanPDF from '../keuangan/components/LaporanPDF'
@@ -77,9 +77,48 @@ interface LPJ {
 
 export default function LpjPage() {
   // Data States
-  const [lpjList, setLpjList] = useState<LPJ[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [currentUser, setCurrentUser] = useState<any>(null)
+
+  const { data: lpjData, isLoading: loading } = useQuery({
+    queryKey: ['lpj'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/lpj', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch lpj')
+      return res.json()
+    },
+    refetchInterval: 15000, // Sync every 15 seconds
+  })
+
+  // Pre-fetch related data for PDF gen
+  const { data: pemasukanData } = useQuery({
+    queryKey: ['pemasukan'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/pemasukan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      return res.json()
+    }
+  })
+
+  const { data: pengeluaranData } = useQuery({
+    queryKey: ['pengeluaran'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/keuangan/pengeluaran', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      return res.json()
+    }
+  })
+
+  const lpjList = lpjData?.data || []
+  const pemasukanList = pemasukanData?.data || []
+  const pengeluaranList = pengeluaranData?.data || []
 
   // Filter States
   const [search, setSearch] = useState('')
@@ -126,35 +165,6 @@ export default function LpjPage() {
     const userData = localStorage.getItem('user')
     if (userData) setCurrentUser(JSON.parse(userData))
   }, [])
-
-  useEffect(() => {
-    fetchLPJ()
-  }, [filterStatus])
-
-  const fetchLPJ = async () => {
-    try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const params = new URLSearchParams({
-        limit: '50'
-      })
-      if (search) params.append('search', search)
-      if (filterStatus !== 'ALL') params.append('status', filterStatus)
-
-      const response = await fetch(`/api/keuangan/lpj?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setLpjList(data.data)
-      }
-    } catch (error) {
-      console.error('Error fetching LPJ:', error)
-      toast.error('Gagal memuat data LPJ')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleCalculateSummary = async () => {
     if (!formData.tanggalMulai || !formData.tanggalSelesai) {
@@ -212,7 +222,7 @@ export default function LpjPage() {
         toast.success(editingId ? 'LPJ berhasil diperbarui' : 'LPJ berhasil diajukan')
         setShowCreateDialog(false)
         resetForm()
-        fetchLPJ()
+        queryClient.invalidateQueries({ queryKey: ['lpj'] })
       } else {
         const data = await response.json()
         toast.error(data.error || 'Gagal menyimpan LPJ', {
@@ -245,7 +255,7 @@ export default function LpjPage() {
         setShowDetailDialog(false)
         setShowRejectDialog(false)
         setRejectReason('')
-        fetchLPJ()
+        queryClient.invalidateQueries({ queryKey: ['lpj'] })
       } else {
         toast.error('Gagal memperbarui status')
       }
@@ -271,9 +281,7 @@ export default function LpjPage() {
       if (response.ok) {
         toast.success('LPJ berhasil dihapus', { id: toastId })
         setShowDetailDialog(false)
-        // Wait a bit before refreshing to ensure database consistency
-        await new Promise(resolve => setTimeout(resolve, 300))
-        await fetchLPJ()
+        queryClient.invalidateQueries({ queryKey: ['lpj'] })
       } else {
         toast.error(data.error || 'Gagal menghapus data', { 
           id: toastId,
@@ -436,21 +444,31 @@ export default function LpjPage() {
 
             // Force all colors to be standard hex/rgb for all elements in the target
             const allElements = clonedElement.querySelectorAll('*')
-            allElements.forEach((el: any) => {
-              const styles = window.getComputedStyle(el)
-              
-              const checkAndFix = (prop: string, fallback: string) => {
-                const val = (el.style as any)[prop] || styles.getPropertyValue(prop)
-                if (val && (val.includes('lab') || val.includes('oklch') || val.includes('hwb'))) {
-                  el.style.setProperty(prop, fallback, 'important')
-                }
+            
+            // Helper to convert lab/oklch to safe colors if found
+            const sanitizeValue = (val: string, fallback: string) => {
+              if (!val) return fallback;
+              const v = val.toLowerCase();
+              if (v.includes('lab(') || v.includes('oklch(') || v.includes('hwb(') || v.includes('oklab(')) {
+                return fallback;
               }
+              return val;
+            };
 
-              checkAndFix('backgroundColor', '#ffffff')
-              checkAndFix('color', '#000000')
-              checkAndFix('borderColor', '#000000')
-              checkAndFix('fill', 'currentColor')
-              checkAndFix('stroke', 'currentColor')
+            allElements.forEach((el: any) => {
+              const styles = window.getComputedStyle(el);
+              
+              // Force direct styles for html2canvas to pick up
+              el.style.backgroundColor = sanitizeValue(styles.backgroundColor, '#ffffff');
+              el.style.color = sanitizeValue(styles.color, '#000000');
+              el.style.borderColor = sanitizeValue(styles.borderColor, '#000000');
+              el.style.boxShadow = 'none';
+              el.style.outline = 'none';
+              
+              if (el.tagName === 'svg' || el.tagName === 'path') {
+                el.style.fill = sanitizeValue(styles.fill, 'currentColor');
+                el.style.stroke = sanitizeValue(styles.stroke, 'currentColor');
+              }
             })
           }
         }
@@ -579,7 +597,7 @@ export default function LpjPage() {
               placeholder="Cari periode atau keterangan..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyUp={(e) => e.key === 'Enter' && fetchLPJ()}
+              onKeyUp={(e) => e.key === 'Enter' && queryClient.invalidateQueries({ queryKey: ['lpj'] })}
               className="pl-10 md:pl-11 h-10 md:h-11 bg-slate-50 border-none rounded-lg md:rounded-xl focus-visible:ring-indigo-500/20 text-sm md:text-base"
             />
           </div>

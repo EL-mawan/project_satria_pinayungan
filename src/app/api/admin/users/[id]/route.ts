@@ -5,8 +5,9 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const session = await verifyAuth(request)
     if (!session) {
@@ -17,7 +18,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { id } = await params
+    const { id } = params
     const targetUser = await db.user.findUnique({ where: { id } })
     
     if (!targetUser) {
@@ -70,8 +71,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const session = await verifyAuth(request)
     if (!session) {
@@ -82,7 +84,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { id } = await params
+    const { id } = params
     
     // Self-deletion check
     if (id === session.id) {

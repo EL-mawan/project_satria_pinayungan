@@ -22,15 +22,16 @@ async function verifyAuth(request: NextRequest) {
 // PATCH - Update Kegiatan
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   const user = await verifyAuth(req)
   if (!user || !['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'].includes(user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const { id } = await params
+    const { id } = params
     const body = await req.json()
     const { judul, deskripsi, tanggal, lokasi, jenis, status } = body
 
@@ -74,15 +75,16 @@ export async function PATCH(
 // DELETE - Remove Kegiatan
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   const user = await verifyAuth(req)
   if (!user || !['MASTER_ADMIN', 'KETUA', 'SEKRETARIS'].includes(user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const { id } = await params
+    const { id } = params
     
     const existingKegiatan = await robustDbOperation(
       () => prisma.kegiatan.findUnique({

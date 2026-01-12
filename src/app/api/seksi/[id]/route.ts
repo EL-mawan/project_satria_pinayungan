@@ -5,15 +5,16 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const auth = await verifyAuth(request)
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id } = params
 
     const seksi = await db.seksi.findUnique({
       where: { id },
@@ -43,15 +44,16 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const auth = await verifyAuth(request)
     if (!auth || !['MASTER_ADMIN', 'KETUA'].includes(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id } = params
     const body = await request.json()
     const { nama, bidang, deskripsi, tugas, ketuaId } = body
 
@@ -85,15 +87,16 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const auth = await verifyAuth(request)
     if (!auth || !['MASTER_ADMIN'].includes(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id } = params
 
     const existingSeksi = await robustDbOperation(
       () => db.seksi.findUnique({ where: { id } }),

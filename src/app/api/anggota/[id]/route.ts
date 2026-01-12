@@ -6,8 +6,9 @@ import { hash } from 'bcryptjs'
 // GET Single Member
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const member = await prisma.anggota.findUnique({
       where: { id: params.id },
@@ -42,8 +43,9 @@ export async function GET(
 // PATCH Update Member
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const body = await req.json()
     const { 
@@ -128,8 +130,9 @@ export async function PATCH(
 // DELETE Member
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params
   try {
     const member = await prisma.anggota.findUnique({
       where: { id: params.id }

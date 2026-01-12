@@ -315,16 +315,33 @@ export default function LpjPage() {
     
     try {
       const token = localStorage.getItem('token')
+
+      if (!token) {
+        throw new Error('Sesi anda telah berakhir. Silakan login kembali.')
+      }
       
       // 1. Fetch ALL pemasukan and pengeluaran to filter
       toast.loading('Mengambil data keuangan...', { id: toastId })
+      
       const [pemRes, pengRes] = await Promise.all([
-        fetch('/api/keuangan/pemasukan?limit=1000', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/keuangan/pengeluaran?limit=1000', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/keuangan/pemasukan?limit=2000', { 
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store' 
+        }),
+        fetch('/api/keuangan/pengeluaran?limit=2000', { 
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store'
+        })
       ])
 
-      if (!pemRes.ok || !pengRes.ok) {
-        throw new Error('Gagal mengambil data keuangan')
+      if (!pemRes.ok) {
+        const err = await pemRes.json().catch(() => ({}))
+        throw new Error(`Gagal mengambil data pemasukan: ${err.error || pemRes.statusText}`)
+      }
+      
+      if (!pengRes.ok) {
+        const err = await pengRes.json().catch(() => ({}))
+        throw new Error(`Gagal mengambil data pengeluaran: ${err.error || pengRes.statusText}`)
       }
 
       const pemData = await pemRes.json()

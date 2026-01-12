@@ -2259,7 +2259,7 @@ const PageWrapper = ({ children, data }: { children: React.ReactNode, data: Prop
           <div className="h2-wrapper" style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
             <span className="h2-bar" style={{ width: '10px', height: '35px', backgroundColor: 'black', marginRight: '15px' }}></span>
             <h2 style={{ fontWeight: 'bold', fontSize: '14pt', textTransform: 'uppercase', margin: 0 }}>
-                III. Rencana Kebutuhan Alat {pageNum > 1 ? `(Bersambung - Hal ${pageNum})` : ''}
+                III. Rencana Anggaran Biaya {pageNum > 1 ? `(Bersambung - Hal ${pageNum})` : ''}
             </h2>
           </div>  
           

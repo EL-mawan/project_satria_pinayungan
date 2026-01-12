@@ -104,7 +104,10 @@ const LaporanPDF = forwardRef<HTMLDivElement, LaporanPDFProps>(({
       fontSize: '12px',
       boxSizing: 'border-box' as const,
       position: 'relative' as const,
-      overflow: 'hidden' as const
+      overflow: 'hidden' as const,
+      textRendering: 'optimizeLegibility' as const,
+      WebkitFontSmoothing: 'antialiased' as const,
+      MozOsxFontSmoothing: 'grayscale' as const
     },
     tableHeaderYellow: {
       backgroundColor: '#fef08a',

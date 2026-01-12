@@ -385,8 +385,8 @@ export default function LpjPage() {
       }
 
       const canvas = await html2canvas(element, {
-        scale: 1.5, // Reduced scale slightly for stability with large data
-        logging: true, // Enable logging for debugging
+        scale: 2.5, // Increased for better clarity/sharpness
+        logging: false, // Turn off logging for production
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',

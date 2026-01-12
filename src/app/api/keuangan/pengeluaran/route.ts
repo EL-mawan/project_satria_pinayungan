@@ -20,6 +20,7 @@ async function verifyAuth(request: NextRequest) {
     })
     return user
   } catch (error) {
+    console.error('Auth verification failed:', error)
     return null
   }
 }

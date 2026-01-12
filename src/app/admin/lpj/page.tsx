@@ -335,11 +335,18 @@ export default function LpjPage() {
       ])
 
       if (!pemRes.ok) {
+        if (pemRes.status === 401) {
+             // Redirect or just throw specific error
+             throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
+        }
         const err = await pemRes.json().catch(() => ({}))
         throw new Error(`Gagal mengambil data pemasukan: ${err.error || pemRes.statusText}`)
       }
       
       if (!pengRes.ok) {
+        if (pengRes.status === 401) {
+             throw new Error('Sesi kadaluarsa. Harap Logout dan Login kembali.')
+        }
         const err = await pengRes.json().catch(() => ({}))
         throw new Error(`Gagal mengambil data pengeluaran: ${err.error || pengRes.statusText}`)
       }

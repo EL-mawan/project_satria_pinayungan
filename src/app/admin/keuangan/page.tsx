@@ -521,16 +521,40 @@ function KeuanganContent() {
             clonedElement.style.left = '0'
             clonedElement.style.top = '0'
             
+            // Inject a style tag to override any potential problematic Tailwind colors
+            const style = clonedDoc.createElement('style')
+            style.innerHTML = `
+              * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              *, ::before, ::after {
+                --tw-ring-color: transparent !important;
+                --tw-shadow: 0 0 #0000 !important;
+                --tw-shadow-colored: 0 0 #0000 !important;
+                --tw-outline-style: none !important;
+                font-family: serif !important;
+              }
+            `
+            clonedDoc.head.appendChild(style)
+
             // Force all colors to be standard hex/rgb
             const allElements = clonedElement.querySelectorAll('*')
             allElements.forEach((el: any) => {
-              const computedStyle = window.getComputedStyle(el)
-              if (computedStyle.backgroundColor && computedStyle.backgroundColor.includes('lab')) {
-                el.style.backgroundColor = '#ffffff'
+              const styles = window.getComputedStyle(el)
+              
+              const checkAndFix = (prop: string, fallback: string) => {
+                const val = (el.style as any)[prop] || styles.getPropertyValue(prop)
+                if (val && (val.includes('lab') || val.includes('oklch') || val.includes('hwb'))) {
+                  el.style.setProperty(prop, fallback, 'important')
+                }
               }
-              if (computedStyle.color && computedStyle.color.includes('lab')) {
-                el.style.color = '#000000'
-              }
+
+              checkAndFix('backgroundColor', '#ffffff')
+              checkAndFix('color', '#000000')
+              checkAndFix('borderColor', '#000000')
+              checkAndFix('fill', 'currentColor')
+              checkAndFix('stroke', 'currentColor')
             })
           }
         }

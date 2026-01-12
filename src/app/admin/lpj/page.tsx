@@ -80,17 +80,25 @@ export default function LpjPage() {
   const queryClient = useQueryClient()
   const [currentUser, setCurrentUser] = useState<any>(null)
 
+  // Filter States
+  const [search, setSearch] = useState('')
+  const [filterStatus, setFilterStatus] = useState('ALL')
+
   const { data: lpjData, isLoading: loading } = useQuery({
-    queryKey: ['lpj'],
+    queryKey: ['lpj', search, filterStatus],
     queryFn: async () => {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/keuangan/lpj', {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (filterStatus !== 'ALL') params.append('status', filterStatus)
+      
+      const res = await fetch(`/api/keuangan/lpj?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Failed to fetch lpj')
       return res.json()
     },
-    refetchInterval: 15000, // Sync every 15 seconds
+    refetchInterval: 15000,
   })
 
   // Pre-fetch related data for PDF gen
@@ -119,10 +127,6 @@ export default function LpjPage() {
   const lpjList = lpjData?.data || []
   const pemasukanList = pemasukanData?.data || []
   const pengeluaranList = pengeluaranData?.data || []
-
-  // Filter States
-  const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('ALL')
 
   // Dialog & Selection States
   const [selectedLPJ, setSelectedLPJ] = useState<LPJ | null>(null)
@@ -618,7 +622,7 @@ export default function LpjPage() {
                     ))}
                 </SelectContent>
             </Select>
-            <Button onClick={fetchLPJ} className="h-10 md:h-11 rounded-lg md:rounded-xl bg-slate-900 border-none px-4 md:px-6 font-bold hover:bg-black transition-all text-sm md:text-base">
+            <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['lpj'] })} className="h-10 md:h-11 rounded-lg md:rounded-xl bg-slate-900 border-none px-4 md:px-6 font-bold hover:bg-black transition-all text-sm md:text-base">
               Terapkan
             </Button>
           </div>

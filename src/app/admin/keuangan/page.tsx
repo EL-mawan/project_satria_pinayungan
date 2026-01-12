@@ -405,6 +405,8 @@ function KeuanganContent() {
   const handleDelete = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
     
+    const toastId = toast.loading('Menghapus data...')
+    
     try {
       const token = localStorage.getItem('token')
       const endpoint = activeTab === 'pemasukan' 
@@ -416,18 +418,29 @@ function KeuanganContent() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        toast.success('Data berhasil dihapus')
+        toast.success('Data berhasil dihapus', { id: toastId })
+        // Wait a bit before refreshing to ensure database consistency
+        await new Promise(resolve => setTimeout(resolve, 300))
         if (activeTab === 'pemasukan') {
-          fetchPemasukan()
+          await fetchPemasukan()
         } else {
-          fetchPengeluaran()
+          await fetchPengeluaran()
         }
       } else {
-        toast.error('Gagal menghapus data')
+        toast.error(data.error || 'Gagal menghapus data', { 
+          id: toastId,
+          description: data.code ? `Kode: ${data.code}` : undefined
+        })
       }
     } catch (error) {
-      toast.error('Terjadi kesalahan server')
+      console.error('Error deleting data:', error)
+      toast.error('Koneksi terputus. Silakan coba lagi', { 
+        id: toastId,
+        description: 'Periksa koneksi internet Anda'
+      })
     }
   }
 
@@ -492,8 +505,13 @@ function KeuanganContent() {
         scale: 2, 
         logging: false,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         windowWidth: 794, // Approx 210mm at 96dpi
+        ignoreElements: (element) => {
+          // Ignore elements that might have unsupported color formats
+          return element.classList?.contains('ignore-pdf') || false
+        },
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('laporan-pdf')
           if (clonedElement) {
@@ -502,6 +520,18 @@ function KeuanganContent() {
             clonedElement.style.position = 'relative'
             clonedElement.style.left = '0'
             clonedElement.style.top = '0'
+            
+            // Force all colors to be standard hex/rgb
+            const allElements = clonedElement.querySelectorAll('*')
+            allElements.forEach((el: any) => {
+              const computedStyle = window.getComputedStyle(el)
+              if (computedStyle.backgroundColor && computedStyle.backgroundColor.includes('lab')) {
+                el.style.backgroundColor = '#ffffff'
+              }
+              if (computedStyle.color && computedStyle.color.includes('lab')) {
+                el.style.color = '#000000'
+              }
+            })
           }
         }
       })

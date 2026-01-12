@@ -107,12 +107,12 @@ const LaporanPDF = forwardRef<HTMLDivElement, LaporanPDFProps>(({
       overflow: 'hidden' as const
     },
     tableHeaderYellow: {
-      backgroundColor: '#fde047',
+      backgroundColor: '#fef08a',
       color: '#000000',
       borderColor: '#000000'
     },
     tableHeaderBlue: {
-      backgroundColor: '#bfdbfe',
+      backgroundColor: '#dbeafe',
       color: '#000000',
       borderColor: '#000000'
     },

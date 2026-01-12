@@ -375,8 +375,13 @@ export default function LpjPage() {
         scale: 2, 
         logging: false,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         windowWidth: 794,
+        ignoreElements: (element) => {
+          // Ignore elements that might have unsupported color formats
+          return element.classList?.contains('ignore-pdf') || false
+        },
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('laporan-pdf')
           if (clonedElement) {
@@ -385,6 +390,18 @@ export default function LpjPage() {
             clonedElement.style.position = 'relative'
             clonedElement.style.left = '0'
             clonedElement.style.top = '0'
+            
+            // Force all colors to be standard hex/rgb
+            const allElements = clonedElement.querySelectorAll('*')
+            allElements.forEach((el: any) => {
+              const computedStyle = window.getComputedStyle(el)
+              if (computedStyle.backgroundColor && computedStyle.backgroundColor.includes('lab')) {
+                el.style.backgroundColor = '#ffffff'
+              }
+              if (computedStyle.color && computedStyle.color.includes('lab')) {
+                el.style.color = '#000000'
+              }
+            })
           }
         }
       })

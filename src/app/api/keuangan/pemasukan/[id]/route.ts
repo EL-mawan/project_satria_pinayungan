@@ -19,6 +19,7 @@ async function verifyAuth(request: NextRequest) {
     })
     return user
   } catch (error) {
+    console.error('Auth verification failed:', error)
     return null
   }
 }
@@ -52,7 +53,11 @@ export async function DELETE(
     console.error('Error deleting pemasukan:', error)
     const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: dbError.message, code: dbError.code },
+      { 
+        error: dbError.message, 
+        code: dbError.code, 
+        details: dbError.code === 'UNKNOWN' ? error.message : undefined 
+      },
       { status: 500 }
     )
   }
@@ -101,7 +106,11 @@ export async function PATCH(
     console.error('Error updating pemasukan:', error)
     const dbError = formatDatabaseError(error)
     return NextResponse.json(
-      { error: dbError.message, code: dbError.code },
+      { 
+        error: dbError.message, 
+        code: dbError.code, 
+        details: dbError.code === 'UNKNOWN' ? error.message : undefined 
+      },
       { status: 500 }
     )
   }

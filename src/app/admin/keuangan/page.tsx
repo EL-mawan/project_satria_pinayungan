@@ -432,7 +432,7 @@ function KeuanganContent() {
       } else {
         toast.error(data.error || 'Gagal menghapus data', { 
           id: toastId,
-          description: data.code ? `Kode: ${data.code}` : undefined
+          description: data.details || (data.code ? `Kode: ${data.code}` : undefined)
         })
       }
     } catch (error) {

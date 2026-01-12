@@ -17,9 +17,18 @@ export const db =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
-// Graceful shutdown
+// Enable query logging in development for performance monitoring
+if (process.env.NODE_ENV === 'development') {
+  // Query performance will be logged via Prisma's built-in logging
+  console.log('Database connection pool initialized with optimized settings')
+}
+
+
+// Graceful shutdown with connection cleanup
 async function gracefulShutdown() {
+  console.log('Closing database connections...')
   await db.$disconnect()
+  console.log('Database connections closed')
 }
 
 process.on('beforeExit', gracefulShutdown)

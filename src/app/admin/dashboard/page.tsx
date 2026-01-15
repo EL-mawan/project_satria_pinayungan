@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation' // Added useRouter
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter() // Initialize router
   const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState<DashboardStats>({
     totalAnggota: 0,
@@ -157,6 +159,25 @@ export default function DashboardPage() {
     }
   }
 
+  // Helper for Tinjau button
+  const handleReviewClick = () => {
+    if (stats.suratMenunggu > 0) {
+      router.push('/admin/surat')
+    } else if (stats.lpjMenunggu > 0) {
+      router.push('/admin/lpj')
+    } else {
+      router.push('/admin/surat') // Default to surat if nothing specific
+    }
+  }
+
+  // Mapping for Quick Actions
+  const quickActionRoutes: {[key: string]: string} = {
+    'Anggota': '/admin/anggota',
+    'Keuangan': '/admin/keuangan',
+    'Persuratan': '/admin/surat',
+    'Laporan': '/admin/lpj'
+  }
+
   if (loading) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
@@ -219,14 +240,25 @@ export default function DashboardPage() {
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900">Aktivitas Terkini</h2>
-            <Button variant="ghost" className="text-[#5E17EB] font-bold text-sm hover:bg-[#5E17EB]/5">
+            <Button 
+                variant="ghost" 
+                className="text-[#5E17EB] font-bold text-sm hover:bg-[#5E17EB]/5"
+                onClick={() => router.push('/admin/kegiatan')}
+            >
               Lihat Semua <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
 
           <div className="grid gap-4">
             {stats.recentActivities.map((activity) => (
-              <Card key={activity.id} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl sm:rounded-4xl hover:shadow-lg transition-all duration-300 bg-white group cursor-pointer">
+              <Card 
+                key={activity.id} 
+                className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl sm:rounded-4xl hover:shadow-lg transition-all duration-300 bg-white group cursor-pointer"
+                onClick={() => {
+                    if (activity.type === 'kegiatan') router.push(`/admin/kegiatan?id=${activity.id}`)
+                    else if (activity.type === 'surat') router.push(`/admin/surat?id=${activity.id}`)
+                }}
+              >
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                     {/* Activity Icon/Logo */}
@@ -283,7 +315,10 @@ export default function DashboardPage() {
                 <p className="text-white/70 text-sm font-medium leading-relaxed mb-6">
                   Ada {stats.suratMenunggu} surat dan {stats.lpjMenunggu} LPJ yang menunggu validasi Anda segera.
                 </p>
-                <Button className="w-full bg-white text-[#5E17EB] hover:bg-slate-100 font-extrabold rounded-2xl h-12 shadow-lg">
+                <Button 
+                    className="w-full bg-white text-[#5E17EB] hover:bg-slate-100 font-extrabold rounded-2xl h-12 shadow-lg"
+                    onClick={handleReviewClick}
+                >
                   Tinjau Sekarang
                 </Button>
               </div>
@@ -301,7 +336,11 @@ export default function DashboardPage() {
                 { label: 'Laporan', icon: TrendingUp, color: 'bg-rose-50 text-rose-600', roles: ['MASTER_ADMIN', 'KETUA', 'BENDAHARA'] },
               ].filter(action => !user || action.roles.includes(user.role))
                .map((action, i) => (
-                <button key={i} className="flex flex-col items-center justify-center p-4 sm:p-6 bg-white rounded-3xl sm:rounded-4xl hover:ring-2 hover:ring-[#5E17EB]/10 hover:shadow-md transition-all group border border-slate-100">
+                <button 
+                    key={i} 
+                    className="flex flex-col items-center justify-center p-4 sm:p-6 bg-white rounded-3xl sm:rounded-4xl hover:ring-2 hover:ring-[#5E17EB]/10 hover:shadow-md transition-all group border border-slate-100"
+                    onClick={() => router.push(quickActionRoutes[action.label] || '#')}
+                >
                   <div className={`p-3 rounded-2xl ${action.color} mb-3 group-hover:scale-110 transition-transform`}>
                     <action.icon className="h-6 w-6" />
                   </div>

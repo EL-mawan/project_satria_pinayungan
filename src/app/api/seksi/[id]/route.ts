@@ -92,7 +92,7 @@ export async function DELETE(
   const params = await props.params
   try {
     const auth = await verifyAuth(request)
-    if (!auth || !['MASTER_ADMIN'].includes(auth.role)) {
+    if (!auth || !['MASTER_ADMIN', 'KETUA'].includes(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

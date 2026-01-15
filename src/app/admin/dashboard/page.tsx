@@ -93,7 +93,27 @@ export default function DashboardPage() {
     }
 
     loadDashboardData()
-  }, [])
+
+    // Back Button Trap khusus Halaman Dashboard
+    const handlePopState = () => {
+      // Re-push state untuk menahan user di halaman
+      window.history.pushState(null, '', window.location.href);
+      
+      if (confirm('Untuk keamanan, navigasi "Back" akan mengeluarkan Anda dari sistem. Lanjutkan Logout?')) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          router.push('/login')
+      }
+    }
+
+    // Inisialisasi state history
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [router])
 
   const formatCurrency = (amount: number) => {
     return 'Rp ' + new Intl.NumberFormat('id-ID', {

@@ -1480,7 +1480,7 @@ export default function UndanganBuilderPage() {
                         )}
                      </div>
 
-                     <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto justify-end">
                         <Button
                             onClick={() => setShowEnvelope(!showEnvelope)}
                             variant="secondary"

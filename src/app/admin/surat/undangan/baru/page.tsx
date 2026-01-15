@@ -895,6 +895,14 @@ export default function UndanganBuilderPage() {
     )
   }
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/admin/surat')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-2.5 sm:p-6">
       <div className="max-w-screen-2xl mx-auto">

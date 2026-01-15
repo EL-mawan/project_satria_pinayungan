@@ -71,6 +71,27 @@ export default function AdminLayout({
       router.push('/login')
     }
 
+    // Back Button Trap for Security
+    // "when click back button direct to alert logout command"
+    const handlePopState = () => {
+        // Re-push state to "stay" on the page (undoing the back action visually)
+        window.history.pushState(null, '', window.location.href);
+        
+        if (confirm('Untuk keamanan, navigasi "Back" akan mengeluarkan Anda dari sistem. Lanjutkan Logout?')) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            router.push('/login')
+        }
+    }
+
+    // Push a state so that "Back" has something to pop
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+        window.removeEventListener('popstate', handlePopState)
+    }
+
   }, [router])
 
   // Notifications State

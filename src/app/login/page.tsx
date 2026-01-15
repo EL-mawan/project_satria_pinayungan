@@ -20,6 +20,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
 
+  // Clear session on load to ensure "must fill login" rule
+  useState(() => {
+     if (typeof window !== 'undefined') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+     }
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

@@ -913,6 +913,14 @@ export default function ProposalBuilderPage() {
       )
   }
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/admin/surat')
+    }
+  }
+
   return (
     <div className={isViewMode ? "" : "flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 pb-20 px-2 md:px-6 lg:px-0"}>
       {/* Form Section */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -21,12 +21,12 @@ export default function LoginPage() {
   const router = useRouter()
 
   // Clear session on load to ensure "must fill login" rule
-  useState(() => {
+  useEffect(() => {
      if (typeof window !== 'undefined') {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
      }
-  })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

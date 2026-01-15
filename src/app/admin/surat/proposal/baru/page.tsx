@@ -917,7 +917,25 @@ export default function ProposalBuilderPage() {
     <div className={isViewMode ? "" : "flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 pb-20 px-2 md:px-6 lg:px-0"}>
       {/* Form Section */}
       {!isViewMode && (
-      <div className="flex-1 space-y-4 md:space-y-6 animate-in fade-in duration-700">
+      <div 
+        className="flex-1 space-y-4 md:space-y-6 animate-in fade-in duration-700"
+        onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'TEXTAREA') return; 
+                
+                e.preventDefault();
+                const formElements = Array.from(
+                    document.querySelectorAll('input:not([disabled]):not([type="hidden"]):not([type="file"]), select:not([disabled]), textarea:not([disabled])')
+                ) as HTMLElement[];
+                
+                const index = formElements.indexOf(target);
+                if (index > -1 && index < formElements.length - 1) {
+                    formElements[index + 1].focus();
+                }
+            }
+        }}
+      >
         <div className="flex flex-col gap-2">
           <Button variant="ghost" className="p-0 h-auto hover:bg-transparent text-slate-500 hover:text-[#5E17EB] self-start" onClick={() => router.push('/admin/surat')}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Kembali

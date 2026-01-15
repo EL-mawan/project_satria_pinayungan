@@ -922,8 +922,27 @@ export default function UndanganBuilderPage() {
 
         <div className={isViewMode ? "" : "flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 pb-20"}>
           {/* Form Section */}
+            {/* Form Section */}
           {!isViewMode && (
-          <div className="flex-1 space-y-6 animate-in fade-in duration-700">
+          <div 
+             className="flex-1 space-y-6 animate-in fade-in duration-700"
+             onKeyDown={(e) => {
+                 if (e.key === 'Enter') {
+                     const target = e.target as HTMLElement;
+                     if (target.tagName === 'TEXTAREA') return; 
+                     
+                     e.preventDefault();
+                     const formElements = Array.from(
+                         document.querySelectorAll('input:not([disabled]):not([type="hidden"]):not([type="file"]), select:not([disabled]), textarea:not([disabled])')
+                     ) as HTMLElement[];
+                     
+                     const index = formElements.indexOf(target);
+                     if (index > -1 && index < formElements.length - 1) {
+                         formElements[index + 1].focus();
+                     }
+                 }
+             }}
+          >
             {/* Kop Surat */}
             <Card className="shadow-xs border-emerald-100/50 hover:shadow-md transition-shadow duration-300 rounded-xl border">
               <CardHeader className="bg-linear-to-r from-emerald-50 to-white border-b border-emerald-100/50 pb-4">

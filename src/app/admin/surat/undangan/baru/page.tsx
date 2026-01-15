@@ -1428,7 +1428,7 @@ export default function UndanganBuilderPage() {
             style={isViewMode ? { zIndex: 40, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' } : undefined}
           >
             <div className={isViewMode ? "w-full max-w-[850px] animate-in zoom-in-95 duration-300" : "lg:sticky lg:top-10 w-full max-w-[850px]"}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 md:mb-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between gap-3 sm:gap-0 mb-4 md:mb-6">
                 <div className="flex items-center gap-2 sm:gap-4">
                      {isViewMode && (
                         <Button variant="ghost" className="p-0 h-auto hover:bg-transparent text-slate-500 hover:text-[#5E17EB]" onClick={() => router.push('/admin/surat')}>
@@ -1438,7 +1438,7 @@ export default function UndanganBuilderPage() {
                      <h2 className="font-black text-xl sm:text-2xl text-slate-900 tracking-tight">Digital Preview</h2>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-3">
                     {bulkRecipients.length > 0 && (
                       <div className="flex items-center gap-1 bg-white rounded-full p-1 shadow-sm border border-slate-200 mr-2">
                          <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-slate-100" onClick={handlePreviousRecipient} disabled={currentRecipientIndex === 0}>
@@ -1453,10 +1453,10 @@ export default function UndanganBuilderPage() {
                       </div>
                     )}
 
-                    {!isViewMode && <Badge className="bg-emerald-100 text-emerald-600 border-none font-bold px-3 py-1 text-xs sm:text-sm rounded-full">Ready for Export</Badge>}
+                    {!isViewMode && <Badge className="bg-emerald-100 text-emerald-600 border-none font-bold px-3 py-1 text-[10px] sm:text-sm rounded-full whitespace-nowrap">Ready for Export</Badge>}
                     
                     {/* Status Badge */}
-                    <Badge className={`px-3 py-1 text-xs sm:text-sm rounded-full border-none font-bold ${
+                    <Badge className={`px-3 py-1 text-[10px] sm:text-sm rounded-full border-none font-bold whitespace-nowrap ${
                         undanganStatus === 'VALIDASI' ? 'bg-emerald-500 text-white' : 
                         undanganStatus === 'DITOLAK' ? 'bg-rose-500 text-white' : 
                         'bg-amber-100 text-amber-700'
@@ -1505,7 +1505,7 @@ export default function UndanganBuilderPage() {
                             variant="secondary"
                             className="flex-1 md:flex-none rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
                         >
-                            <Printer className="mr-2 h-4 w-4" /> {showEnvelope ? "Lihat Surat" : "Cetak Amplop"}
+                            <Printer className="mr-2 h-4 w-4" /> {showEnvelope ? "Lihat Surat" : "Lihat Amplop"}
                         </Button>
 
                         {/* Admin / Ketua Actions */}

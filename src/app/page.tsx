@@ -546,12 +546,7 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="text-center mt-20 reveal-on-scroll">
-            <Button variant="outline" className="h-18 border-slate-200 rounded-3xl px-12 font-black text-lg text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all shadow-md active:scale-95 group">
-              Eksplor Galeri Lengkap
-              <Camera className="ml-3 h-5 w-5 text-[#5E17EB] group-hover:text-white transition-colors" />
-            </Button>
-          </div>
+
         </div>
       </section>
 
@@ -567,9 +562,9 @@ export default function Home() {
               
               <div className="space-y-8">
                 {[
-                  { icon: MapPin, title: 'Lokasi Padepokan', detail: 'Jl. Ragas Grenyang No. 88, Banten, Indonesia', color: 'bg-blue-50 text-blue-600' },
-                  { icon: Phone, title: 'Konsultasi (WA)', detail: '+62 812-3456-7890', color: 'bg-green-50 text-green-600' },
-                  { icon: Mail, title: 'Korespondensi', detail: 'halo@satriapinayungan.org', color: 'bg-purple-50 text-purple-600' }
+                  { icon: MapPin, title: 'Lokasi Padepokan', detail: 'Jl. Nasional XIX, Desa Argawana, Banten, Indonesia', color: 'bg-blue-50 text-blue-600' },
+                  { icon: Phone, title: 'Konsultasi (WA)', detail: '+62 89647565908', color: 'bg-green-50 text-green-600' },
+                  { icon: Mail, title: 'Korespondensi', detail: 'arirusmawan418@gmail.com', color: 'bg-purple-50 text-purple-600' }
                 ].map((info, i) => (
                   <div key={i} className="flex items-center space-x-6 group">
                     <div className={`w-14 h-14 ${info.color} rounded-2xl flex items-center justify-center shrink-0 border border-white shadow-sm group-hover:scale-110 transition-transform duration-500`}>
@@ -667,8 +662,8 @@ export default function Home() {
                   <img src="/padepokan-logo.png" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h3 className="font-black text-2xl tracking-tight leading-none">Satria</h3>
-                  <p className="text-white/50 font-bold uppercase tracking-[0.3em] text-[10px] mt-1">Pinayungan</p>
+                  <h3 className="font-black text-2xl tracking-tight leading-none">Satria Pinayungan</h3>
+                  <p className="text-white/50 font-bold uppercase tracking-[0.3em] text-[10px] mt-1">Ragas Grenyang</p>
                 </div>
               </div>
               <p className="text-slate-400 font-medium text-lg leading-relaxed mb-10 pr-4">
@@ -685,7 +680,7 @@ export default function Home() {
 
             {[
               { name: 'Menu Navigasi', items: ['Visi Misi', 'Sejarah', 'Jadwal Latihan', 'Pendaftaran Anggota'] },
-              { name: 'Cabang Utama', items: ['Pusat Banten', 'Unit Jakarta Timur', 'Unit Bandung Utara', 'Unit Jogja Istimewa'] },
+              { name: 'Cabang Utama', items: ['Pusat Banten'] },
               { name: 'Informasi Legal', items: ['AD / ART Padepokan', 'Kebijakan Privasi', 'Syarat & Ketentuan', 'Struktur Organisasi'] }
             ].map((col, i) => (
               <div key={i}>
@@ -707,7 +702,7 @@ export default function Home() {
           <Separator className="my-20 bg-white/5" />
 
           <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 font-black text-xs uppercase tracking-[0.4em]">
-            <p>© 2024 Padepokan Satria Pinayungan. Crafted With Pride.</p>
+            <p>© 2026 Padepokan Satria Pinayungan. Created by <a href="https://arwan.id" target="_blank" rel="noopener noreferrer" className="text-[#5E17EB] hover:text-white transition-colors">Ari rusmawan</a>.</p>
             <div className="flex space-x-12 mt-8 md:mt-0">
                <span className="hover:text-white cursor-pointer transition-colors">Digital Portal</span>
                <span className="hover:text-white cursor-pointer transition-colors">Member Link</span>
